@@ -1,0 +1,423 @@
+// Ink House — modelo de dados
+//
+// Convenções do projeto:
+//  - Todo instante é gravado em UTC. Conversão para o fuso do estúdio acontece
+//    em src/lib/datetime.ts, nunca no banco.
+//  - Preços em CENTAVOS (Int) para não haver erro de ponto flutuante.
+//  - Horários de grade semanal em "HH:mm" (String) porque representam um
+//    horário de parede recorrente, não um instante.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// Autenticação — apenas o painel administrativo tem login.
+// ============================================================================
+
+enum UserRole {
+  ADMIN
+  ARTIST
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         UserRole @default(ARTIST)
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Um usuário com papel ARTIST pode estar ligado ao perfil público do artista.
+  artist Artist?
+
+  @@index([role])
+  @@map("users")
+}
+
+// ============================================================================
+// Domínio do estúdio
+// ============================================================================
+
+model Artist {
+  id             String  @id @default(cuid())
+  slug           String  @unique
+  name           String
+  /// Apelido artístico exibido em destaque nos cards.
+  handle         String?
+  bio            String
+  /// Resumo de uma linha para os cards da home.
+  shortBio       String
+  avatarUrl      String?
+  coverUrl       String?
+  instagram      String?
+  phone          String?
+  email          String?
+  /// Estilos dominados: "Realismo", "Blackwork", ...
+  specialties    String[]
+  yearsOfExp     Int     @default(0)
+  isActive       Boolean @default(true)
+  /// Ordem de exibição na home e nas listas públicas.
+  displayOrder   Int     @default(0)
+  /// Aceita novos agendamentos pelo site.
+  acceptsBooking Boolean @default(true)
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  services     ArtistService[]
+  availability Availability[]
+  blockedTimes BlockedTime[]
+  appointments Appointment[]
+  galleryItems GalleryItem[]
+  testimonials Testimonial[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, displayOrder])
+  @@map("artists")
+}
+
+model Service {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String
+  /// Frase curta usada no card da home.
+  shortDescription String
+  /// Nome do ícone lucide renderizado no card (ver src/components/site/service-icon.tsx).
+  icon        String  @default("Sparkles")
+  imageUrl    String?
+  /// Duração da sessão em minutos — entra no cálculo de disponibilidade.
+  durationMin Int
+  /// Folga adicional após a sessão (limpeza/preparo), também reservada na agenda.
+  bufferMin   Int     @default(15)
+  /// Preço inicial em centavos ("a partir de").
+  priceFrom   Int
+  isActive    Boolean @default(true)
+  /// Aparece na seção de serviços da home.
+  isFeatured  Boolean @default(false)
+  displayOrder Int    @default(0)
+
+  artists      ArtistService[]
+  appointments Appointment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, displayOrder])
+  @@map("services")
+}
+
+/// Quais serviços cada artista executa, com preço opcional por artista.
+model ArtistService {
+  artistId  String
+  serviceId String
+  /// Sobrescreve Service.priceFrom quando definido (centavos).
+  priceFrom Int?
+
+  artist  Artist  @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([artistId, serviceId])
+  @@index([serviceId])
+  @@map("artist_services")
+}
+
+model Client {
+  id        String  @id @default(cuid())
+  name      String
+  /// Somente dígitos, sem DDI — chave natural de deduplicação do agendamento guest.
+  phone     String  @unique
+  email     String?
+  notes     String?
+  /// Marcado quando o estúdio quer bloquear novos agendamentos do cliente.
+  isBlocked Boolean @default(false)
+
+  appointments Appointment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([createdAt])
+  @@map("clients")
+}
+
+// ============================================================================
+// Agenda
+// ============================================================================
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum AppointmentSource {
+  WEBSITE
+  ADMIN
+}
+
+model Appointment {
+  id     String @id @default(cuid())
+  /// Número da reserva legível mostrado ao cliente (ex.: IH-7F3K2A).
+  code   String @unique
+
+  clientId  String
+  artistId  String
+  serviceId String
+
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  artist  Artist  @relation(fields: [artistId], references: [id], onDelete: Restrict)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  /// Início da sessão, em UTC.
+  startsAt DateTime
+  /// Fim já incluindo o buffer do serviço — é este intervalo que bloqueia a agenda.
+  endsAt   DateTime
+
+  status AppointmentStatus @default(PENDING)
+  source AppointmentSource @default(WEBSITE)
+
+  /// Congelado no momento da reserva: o preço do serviço pode mudar depois.
+  priceEstimate Int
+
+  /// Descrição da ideia enviada pelo cliente.
+  referenceNotes String?
+  /// Caminho da imagem de referência enviada no formulário.
+  referenceImage String?
+  /// Anotações internas, nunca exibidas ao cliente.
+  internalNotes  String?
+
+  cancelledAt     DateTime?
+  cancelledReason String?
+
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Índices desenhados para as duas consultas quentes: agenda de um artista
+  // num intervalo, e as listagens do admin por status/data.
+  @@index([artistId, startsAt])
+  @@index([status, startsAt])
+  @@index([startsAt])
+  @@index([clientId])
+  @@map("appointments")
+}
+
+/// Grade semanal recorrente de um artista. Uma linha por dia trabalhado.
+model Availability {
+  id         String @id @default(cuid())
+  artistId   String
+  artist     Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  /// 0 = domingo ... 6 = sábado.
+  dayOfWeek  Int
+  /// "HH:mm" no fuso do estúdio.
+  startTime  String
+  endTime    String
+  /// Intervalo/almoço opcional, também "HH:mm".
+  breakStart String?
+  breakEnd   String?
+  isActive   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Um artista tem no máximo uma grade por dia da semana.
+  @@unique([artistId, dayOfWeek])
+  @@map("availability")
+}
+
+enum BlockReason {
+  DAY_OFF
+  VACATION
+  BREAK
+  APPOINTMENT_HOLD
+  OTHER
+}
+
+/// Bloqueio pontual: folga, férias ou horário reservado manualmente.
+/// artistId nulo = bloqueio do estúdio inteiro (feriado, reforma).
+model BlockedTime {
+  id       String  @id @default(cuid())
+  artistId String?
+  artist   Artist? @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  /// Ambos em UTC.
+  startsAt DateTime
+  endsAt   DateTime
+
+  reason BlockReason @default(OTHER)
+  note   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([artistId, startsAt])
+  @@index([startsAt])
+  @@map("blocked_times")
+}
+
+// ============================================================================
+// Conteúdo público
+// ============================================================================
+
+model GalleryItem {
+  id       String  @id @default(cuid())
+  title    String
+  /// Estilo: Realismo, Blackwork, Fine Line, Old School, Neo Traditional, Oriental.
+  style    String
+  imageUrl String
+  /// Texto alternativo — obrigatório por acessibilidade.
+  alt      String
+  description String?
+  /// Parte do corpo, exibida no lightbox.
+  bodyPart String?
+
+  artistId String?
+  artist   Artist? @relation(fields: [artistId], references: [id], onDelete: SetNull)
+
+  isPublished  Boolean @default(true)
+  isFeatured   Boolean @default(false)
+  displayOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@index([style])
+  @@map("gallery_items")
+}
+
+model Testimonial {
+  id         String  @id @default(cuid())
+  clientName String
+  avatarUrl  String?
+  /// 1 a 5.
+  rating     Int     @default(5)
+  content    String
+  /// Serviço a que o depoimento se refere, em texto livre.
+  serviceName String?
+
+  artistId String?
+  artist   Artist? @relation(fields: [artistId], references: [id], onDelete: SetNull)
+
+  isPublished  Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@map("testimonials")
+}
+
+// ============================================================================
+// Configuração e notificações
+// ============================================================================
+
+/// Singleton: sempre existe exatamente uma linha, com id = "studio".
+model StudioSettings {
+  id String @id @default("studio")
+
+  name        String
+  tagline     String
+  description String
+
+  phone     String
+  whatsapp  String
+  email     String
+  address   String
+  city      String
+  state     String
+  zip       String
+
+  instagram String?
+  facebook  String?
+  tiktok    String?
+
+  timezone String @default("America/Sao_Paulo")
+
+  /// Grade de horários oferecida ao cliente, em minutos (ex.: 30).
+  slotStepMin Int @default(30)
+  /// Antecedência mínima para agendar, em horas.
+  minLeadTimeHours Int @default(12)
+  /// Janela máxima de agendamento futuro, em dias.
+  maxAdvanceDays Int @default(90)
+
+  /// Funcionamento do estúdio — limite externo que nenhuma grade de artista
+  /// pode ultrapassar. "HH:mm", uma entrada por dia da semana.
+  openingHours OpeningHour[]
+
+  updatedAt DateTime @updatedAt
+
+  @@map("studio_settings")
+}
+
+model OpeningHour {
+  id        String  @id @default(cuid())
+  /// 0 = domingo ... 6 = sábado.
+  dayOfWeek Int     @unique
+  isOpen    Boolean @default(true)
+  opensAt   String  @default("09:00")
+  closesAt  String  @default("20:00")
+
+  settingsId String         @default("studio")
+  settings   StudioSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@map("opening_hours")
+}
+
+enum NotificationType {
+  APPOINTMENT_CREATED
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_REMINDER
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  WHATSAPP
+}
+
+/// Fila/registro de notificações. O adapter padrão apenas persiste e loga;
+/// ver src/lib/notifier.ts para plugar Resend/Twilio sem tocar no domínio.
+model Notification {
+  id      String              @id @default(cuid())
+  type    NotificationType
+  channel NotificationChannel @default(IN_APP)
+
+  title   String
+  message String
+
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  /// Lida no painel admin.
+  readAt DateTime?
+  /// Entregue pelo adapter externo (email/whatsapp).
+  sentAt DateTime?
+  error  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([readAt, createdAt])
+  @@index([appointmentId])
+  @@map("notifications")
+}

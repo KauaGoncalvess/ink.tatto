@@ -1,0 +1,338 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   INK HOUSE — design tokens
+   Paleta deliberadamente estreita: preto profundo, carvão, off-white e um
+   único vermelho editorial. O vermelho é acento, nunca superfície.
+   ========================================================================== */
+
+@theme {
+  /* Pretos e carvões ------------------------------------------------------ */
+  --color-ink-950: #08080a;
+  --color-ink-900: #0d0d10;
+  --color-ink-850: #101014;
+  --color-ink-800: #141418;
+  --color-ink-700: #1c1c21;
+  --color-ink-600: #26262d;
+
+  /* Cinzas de texto ------------------------------------------------------- */
+  --color-ash-700: #35353d;
+  --color-ash-600: #4a4a52;
+  --color-ash-500: #6b6b73;
+  --color-ash-400: #8a8a93;
+  --color-ash-300: #a8a8b0;
+
+  /* Off-whites ------------------------------------------------------------ */
+  --color-bone-100: #f2f0ed;
+  --color-bone-200: #ded9d3;
+  --color-bone-300: #c9c6c1;
+
+  /* Acento ---------------------------------------------------------------- */
+  --color-blood-400: #e0243f;
+  --color-blood-500: #c8102e;
+  --color-blood-600: #a00c24;
+  --color-blood-700: #78091b;
+
+  /* Status (usados só no admin, dessaturados para não competir com o acento) */
+  --color-status-pending: #d99a2b;
+  --color-status-confirmed: #3f9f6f;
+  --color-status-completed: #4a7fb5;
+  --color-status-cancelled: #7a5c8f;
+  --color-status-noshow: #8a5050;
+
+  /* Tipografia ------------------------------------------------------------ */
+  --font-display: var(--font-anton), "Arial Narrow", ui-sans-serif, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Curvas de animação ---------------------------------------------------- */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+/* Fio de 1px usado no lugar de sombras — mantém o visual seco e editorial. */
+@theme {
+  --color-hairline: rgb(255 255 255 / 0.07);
+  --color-hairline-strong: rgb(255 255 255 / 0.14);
+}
+
+/* ============================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-hairline);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ink-950);
+    color: var(--color-bone-200);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Impede scroll horizontal acidental em telas de 320px. */
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: var(--color-blood-500);
+    color: var(--color-bone-100);
+  }
+
+  /* Foco visível em vermelho — acessível e dentro da identidade. */
+  :focus-visible {
+    outline: 2px solid var(--color-blood-500);
+    outline-offset: 2px;
+  }
+
+  /* Scrollbar discreta, combinando com o fundo. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink-600) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-ink-600);
+    border: 3px solid var(--color-ink-950);
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ash-700);
+  }
+
+  /* Datepickers e selects nativos herdam o tema escuro. */
+  input,
+  textarea,
+  select {
+    color-scheme: dark;
+  }
+}
+
+/* ============================================================================
+   Utilitários de identidade
+   Reutilizados em todas as seções — é o que faz o site ler como uma marca só.
+   ========================================================================== */
+
+@utility container-editorial {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 88rem;
+  padding-inline: 1.25rem;
+
+  @media (width >= 48rem) {
+    padding-inline: 2.5rem;
+  }
+  @media (width >= 80rem) {
+    padding-inline: 4rem;
+  }
+}
+
+/* Título display: condensado, caixa alta, tracking negativo. */
+@utility display-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.88;
+  color: var(--color-bone-100);
+}
+
+/* Rótulo pequeno em caixa alta, muito espaçado — o contraponto do display. */
+@utility overline {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* Superfície padrão de card/painel. Nunca branca, nunca com sombra difusa. */
+@utility surface {
+  background-color: var(--color-ink-900);
+  border: 1px solid var(--color-hairline);
+}
+
+@utility surface-raised {
+  background-color: var(--color-ink-850);
+  border: 1px solid var(--color-hairline);
+}
+
+/* Máscara de degradê para fotos que recebem texto por cima. */
+@utility photo-scrim {
+  background-image: linear-gradient(
+    to top,
+    var(--color-ink-950) 0%,
+    rgb(8 8 10 / 0.85) 25%,
+    rgb(8 8 10 / 0.35) 60%,
+    rgb(8 8 10 / 0.15) 100%
+  );
+}
+
+/* ============================================================================
+   Animações
+   Discretas e curtas. Tudo respeita prefers-reduced-motion mais abaixo.
+   ========================================================================== */
+
+@keyframes ink-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ink-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ink-rule-in {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes ink-scroll-hint {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(0.4rem);
+    opacity: 1;
+  }
+}
+
+@keyframes ink-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes ink-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ink-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Reveal on scroll: o estado inicial é aplicado via [data-reveal] e liberado
+   quando o IntersectionObserver marca data-revealed. CSS puro, sem lib.
+
+   O seletor é ancorado em `.js-reveal`, classe que um script inline no <head>
+   coloca no <html> antes da primeira pintura. Sem JavaScript a classe nunca
+   aparece, o estado inicial não se aplica e a página é exibida inteira — em
+   vez de ficar em branco abaixo do hero, que é o que aconteceria se o
+   `opacity: 0` fosse incondicional. */
+@layer components {
+  .js-reveal [data-reveal] {
+    opacity: 0;
+    transform: translateY(1.5rem);
+    transition:
+      opacity 0.8s var(--ease-out-expo),
+      transform 0.8s var(--ease-out-expo);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+
+  .js-reveal [data-reveal="fade"] {
+    transform: none;
+  }
+
+  .js-reveal [data-reveal="scale"] {
+    transform: scale(1.06);
+  }
+
+  .js-reveal [data-revealed="true"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Placeholder de carregamento com brilho sutil. */
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      var(--color-ink-800) 0%,
+      var(--color-ink-700) 50%,
+      var(--color-ink-800) 100%
+    );
+    background-size: 200% 100%;
+    animation: ink-shimmer 1.6s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Entrada dos painéis laterais (menu mobile, drawer do admin). */
+@keyframes sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes sheet-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
