@@ -74,7 +74,7 @@ export default async function ArtistsAdminPage() {
                         {artist.name}
                       </h2>
                       {artist.handle ? (
-                        <span className="mt-0.5 block text-[0.625rem] uppercase tracking-[0.16em] text-blood-500">
+                        <span className="mt-0.5 block text-[0.625rem] uppercase tracking-[0.16em] text-blood-400">
                           {artist.handle}
                         </span>
                       ) : null}

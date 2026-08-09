@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    setupFiles: ["./vitest.setup.ts"],
     // Fuso deliberadamente diferente do estúdio: garante que a lógica de
     // agenda não dependa do relógio do processo.
     env: { TZ: "UTC" },

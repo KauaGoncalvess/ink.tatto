@@ -13,6 +13,7 @@ import {
   Textarea,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { ImageUploadField } from "@/components/ui/image-upload";
 import { Button } from "@/components/ui/button";
 import { deleteArtist, saveArtist } from "@/features/admin/actions";
 import { WEEKDAY_LABELS } from "@/lib/datetime";
@@ -295,16 +296,15 @@ export function ArtistDialog({
               <FieldError>{errors.email}</FieldError>
             </Field>
 
-            <Field>
-              <Label htmlFor="art-avatar">Caminho da foto</Label>
-              <Input
-                id="art-avatar"
-                value={form.avatarUrl}
-                onChange={(event) => patch({ avatarUrl: event.target.value })}
-                disabled={disabled}
-                placeholder="/images/artists/nome.jpg"
-              />
-            </Field>
+            <ImageUploadField
+              label="Retrato"
+              aspect="portrait"
+              folder="artists"
+              value={form.avatarUrl}
+              onChange={(path) => patch({ avatarUrl: path })}
+              disabled={disabled}
+              hint="Vertical (4:5) funciona melhor nos cards."
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <Field>
@@ -388,7 +388,7 @@ export function ArtistDialog({
                   key={day.dayOfWeek}
                   className={cn(
                     "border px-3 py-3 transition-colors",
-                    day.isActive ? "border-hairline-strong" : "border-hairline opacity-60",
+                    day.isActive ? "border-hairline-strong" : "border-hairline bg-ink-900/60",
                   )}
                 >
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-3">

@@ -28,9 +28,16 @@ export type ArtistCardData = {
 export function ArtistCard({
   artist,
   className,
+  headingAs: Heading = "h3",
 }: {
   artist: ArtistCardData;
   className?: string;
+  /**
+   * Nível do título do card. Em `/artistas` os cards vêm logo abaixo do <h1>
+   * da página, sem <h2> no meio — fixar h3 aqui criaria um degrau vago na
+   * hierarquia, que é justamente o que o leitor de tela usa para navegar.
+   */
+  headingAs?: "h2" | "h3";
 }) {
   return (
     <article className={cn("group flex flex-col", className)}>
@@ -73,17 +80,17 @@ export function ArtistCard({
       </div>
 
       <div className="flex flex-1 flex-col pt-5">
-        <h3 className="font-display text-2xl uppercase tracking-tight text-bone-100">
+        <Heading className="font-display text-2xl uppercase tracking-tight text-bone-100">
           <Link
             href={`/artistas/${artist.slug}`}
             className="transition-colors hover:text-blood-400"
           >
             {artist.name}
           </Link>
-        </h3>
+        </Heading>
 
         {artist.handle ? (
-          <span className="mt-1 overline text-blood-500">{artist.handle}</span>
+          <span className="mt-1 overline text-blood-400">{artist.handle}</span>
         ) : null}
 
         <p className="mt-3 flex-1 text-sm leading-relaxed text-ash-400">

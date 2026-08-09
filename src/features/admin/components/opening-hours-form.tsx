@@ -71,7 +71,7 @@ export function OpeningHoursForm({ initial }: { initial: OpeningHourRow[] }) {
             key={row.dayOfWeek}
             className={cn(
               "border px-3 py-3 transition-colors",
-              row.isOpen ? "border-hairline-strong" : "border-hairline opacity-60",
+              row.isOpen ? "border-hairline-strong" : "border-hairline bg-ink-900/60",
             )}
           >
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

@@ -39,6 +39,8 @@ model User {
   // Um usuário com papel ARTIST pode estar ligado ao perfil público do artista.
   artist Artist?
 
+  auditLogs AuditLog[]
+
   @@index([role])
   @@map("users")
 }
@@ -150,6 +152,8 @@ model Client {
 
   @@index([email])
   @@index([createdAt])
+  // Busca por nome na listagem do painel.
+  @@index([name])
   @@map("clients")
 }
 
@@ -420,4 +424,47 @@ model Notification {
   @@index([readAt, createdAt])
   @@index([appointmentId])
   @@map("notifications")
+}
+
+// ============================================================================
+// Auditoria
+// ============================================================================
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  RESCHEDULE
+  LOGIN
+}
+
+/// Registro de quem alterou o quê.
+///
+/// Um estúdio com vários artistas precisa saber quem cancelou um agendamento
+/// ou mudou o preço de um serviço. Guarda o essencial (ator, ação, entidade e
+/// um resumo legível), não um diff completo — o objetivo é rastreabilidade
+/// operacional, não versionamento.
+model AuditLog {
+  id     String      @id @default(cuid())
+  action AuditAction
+
+  /// Nome do modelo afetado ("Appointment", "Service"…).
+  entity   String
+  entityId String?
+  /// Descrição em linguagem natural, pronta para exibição.
+  summary  String
+
+  /// Quem fez. Nulo quando o autor foi removido depois.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Nome copiado no momento da ação, para o histórico sobreviver à exclusão.
+  userName String
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+  @@index([userId])
+  @@map("audit_logs")
 }

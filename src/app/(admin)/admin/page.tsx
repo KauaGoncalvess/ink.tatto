@@ -136,7 +136,7 @@ export default async function AdminDashboardPage() {
                     <span className="font-display text-2xl leading-none text-bone-100">
                       {formatInStudio(appointment.startsAt, "dd/MM")}
                     </span>
-                    <span className="text-sm tabular-nums text-blood-500">
+                    <span className="text-sm tabular-nums text-blood-400">
                       {formatInStudio(appointment.startsAt, "HH:mm")}
                     </span>
                   </span>

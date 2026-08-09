@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 
 import { fontClassNames } from "@/styles/fonts";
 import { siteConfig } from "@/config/site";
@@ -57,9 +58,13 @@ export const viewport: Viewport = {
   // depende de ampliação.
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Nonce gerado por requisição no proxy. A CSP não permite script inline
+  // sem ele — e o Next aplica o mesmo nonce aos próprios scripts.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="pt-BR" className={fontClassNames} suppressHydrationWarning>
       <head>
@@ -72,6 +77,7 @@ export default function RootLayout({
           demais e causaria um flash de conteúdo.
         */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `document.documentElement.classList.add("js-reveal")`,
           }}

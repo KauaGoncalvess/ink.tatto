@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const ip = clientIp(request.headers);
-  const limit = hit(`availability:${ip}`, 120, 60_000);
+  const limit = await hit(`availability:${ip}`, 120, 60_000);
   if (!limit.ok) {
     return NextResponse.json(
       { slots: [], reason: "Muitas consultas. Aguarde um instante." },

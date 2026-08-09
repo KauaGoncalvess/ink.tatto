@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { fakeVerify, verifyPassword } from "@/lib/auth/password";
 import { createSessionCookie, destroySessionCookie } from "@/lib/auth/session";
 import { clientIp, hit, RATE_LIMITS, reset } from "@/lib/rate-limit";
+import { recordAudit } from "@/lib/audit";
 
 /**
  * Autenticação do painel administrativo.
@@ -39,7 +40,7 @@ export async function login(
   const ip = clientIp(await headers());
   const key = `login:${ip}`;
 
-  const limit = hit(key, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs);
+  const limit = await hit(key, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs);
   if (!limit.ok) {
     return {
       error: `Muitas tentativas. Tente novamente em ${Math.ceil(limit.retryAfter / 60)} minutos.`,
@@ -91,18 +92,28 @@ export async function login(
     return { error: "E-mail ou senha incorretos.", email: submittedEmail };
   }
 
-  reset(key);
+  await reset(key);
 
   await prisma.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
   });
 
-  await createSessionCookie({
+  const session = {
     userId: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+  };
+
+  await createSessionCookie(session);
+
+  await recordAudit({
+    actor: session,
+    action: "LOGIN",
+    entity: "User",
+    entityId: user.id,
+    summary: `Entrou no painel a partir de ${ip}.`,
   });
 
   // Só aceita destino interno — impede open redirect via ?destino=https://…

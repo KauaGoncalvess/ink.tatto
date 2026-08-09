@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, Plus } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 
 import {
   AdminPageHeader,
@@ -13,7 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { AppointmentFilters } from "@/features/appointments/components/appointment-filters";
 import { AppointmentActions } from "@/features/appointments/components/appointment-actions";
+import { NewAppointmentDialog } from "@/features/appointments/components/new-appointment-dialog";
+import { ExportCsvButton } from "@/features/appointments/components/export-csv-button";
 import { getFilterOptions, listAppointments } from "@/features/appointments/queries";
+import { getBookableArtists, getBookableServices } from "@/features/booking/queries";
 import { formatInStudio } from "@/lib/datetime";
 import { formatCurrency, formatPhone } from "@/lib/utils";
 import type { AppointmentStatus } from "@prisma/client";
@@ -50,7 +53,12 @@ export default async function AppointmentsPage({ searchParams }: Props) {
 
   const page = Number.parseInt(params.pagina ?? "1", 10);
 
-  const [{ items, total, pageCount, page: currentPage }, options] = await Promise.all([
+  const [
+    { items, total, pageCount, page: currentPage },
+    options,
+    bookableArtists,
+    bookableServices,
+  ] = await Promise.all([
     listAppointments({
       status,
       artistId: params.artista || undefined,
@@ -61,6 +69,8 @@ export default async function AppointmentsPage({ searchParams }: Props) {
       page: Number.isFinite(page) ? page : 1,
     }),
     getFilterOptions(),
+    getBookableArtists(),
+    getBookableServices(),
   ]);
 
   return (
@@ -69,12 +79,21 @@ export default async function AppointmentsPage({ searchParams }: Props) {
         title="Agendamentos"
         description={`${total} ${total === 1 ? "registro encontrado" : "registros encontrados"} com os filtros atuais.`}
         action={
-          <Button asChild size="sm">
-            <Link href="/agendamento" target="_blank">
-              Novo agendamento
-              <Plus aria-hidden="true" />
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportCsvButton />
+            <NewAppointmentDialog
+              artists={bookableArtists.map((artist) => ({
+                id: artist.id,
+                name: artist.name,
+                serviceIds: artist.services.map((link) => link.serviceId),
+              }))}
+              services={bookableServices.map((service) => ({
+                id: service.id,
+                name: service.name,
+                durationMin: service.durationMin,
+              }))}
+            />
+          </div>
         }
       />
 

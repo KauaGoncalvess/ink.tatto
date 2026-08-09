@@ -30,7 +30,7 @@ export function Label({
     >
       {props.children}
       {required ? (
-        <span className="ml-1 text-blood-500" aria-hidden="true">
+        <span className="ml-1 text-blood-400" aria-hidden="true">
           *
         </span>
       ) : null}

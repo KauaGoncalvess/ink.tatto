@@ -6,6 +6,8 @@ import type { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { AuthorizationError, requireAdmin, requireUser } from "@/lib/auth/guards";
+import { recordAudit } from "@/lib/audit";
+import type { SessionPayload } from "@/lib/auth/session";
 import { slugify } from "@/lib/utils";
 import {
   artistSchema,
@@ -34,12 +36,11 @@ type Guard = "user" | "admin";
 
 async function guarded(
   guard: Guard,
-  run: () => Promise<CrudResult>,
+  run: (actor: SessionPayload) => Promise<CrudResult>,
 ): Promise<CrudResult> {
   try {
-    if (guard === "admin") await requireAdmin();
-    else await requireUser();
-    return await run();
+    const actor = guard === "admin" ? await requireAdmin() : await requireUser();
+    return await run(actor);
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return { ok: false, error: error.message };
@@ -82,7 +83,7 @@ function fieldErrorsFrom(error: z.ZodError): Record<string, string> {
 // ---------------------------------------------------------------------------
 
 export async function saveClient(input: unknown): Promise<CrudResult> {
-  return guarded("user", async () => {
+  return guarded("user", async (actor) => {
     const parsed = clientSchema.safeParse(input);
     if (!parsed.success) {
       return {
@@ -101,12 +102,20 @@ export async function saveClient(input: unknown): Promise<CrudResult> {
     revalidatePath("/admin/clientes");
     if (id) revalidatePath(`/admin/clientes/${id}`);
 
+    await recordAudit({
+      actor,
+      action: id ? "UPDATE" : "CREATE",
+      entity: "Client",
+      entityId: client.id,
+      summary: `${id ? "Editou" : "Cadastrou"} o cliente ${client.name}.`,
+    });
+
     return { ok: true, id: client.id, message: "Cliente salvo." };
   });
 }
 
 export async function deleteClient(id: string): Promise<CrudResult> {
-  return guarded("admin", async () => {
+  return guarded("admin", async (actor) => {
     const appointments = await prisma.appointment.count({ where: { clientId: id } });
     if (appointments > 0) {
       return {
@@ -115,7 +124,16 @@ export async function deleteClient(id: string): Promise<CrudResult> {
       };
     }
 
-    await prisma.client.delete({ where: { id } });
+    const removed = await prisma.client.delete({ where: { id } });
+
+    await recordAudit({
+      actor,
+      action: "DELETE",
+      entity: "Client",
+      entityId: id,
+      summary: `Excluiu o cliente ${removed.name}.`,
+    });
+
     revalidatePath("/admin/clientes");
     return { ok: true, message: "Cliente excluído." };
   });
@@ -126,7 +144,7 @@ export async function deleteClient(id: string): Promise<CrudResult> {
 // ---------------------------------------------------------------------------
 
 export async function saveArtist(input: unknown): Promise<CrudResult> {
-  return guarded("admin", async () => {
+  return guarded("admin", async (actor) => {
     const parsed = artistSchema.safeParse(input);
     if (!parsed.success) {
       return {
@@ -191,12 +209,20 @@ export async function saveArtist(input: unknown): Promise<CrudResult> {
     revalidatePath("/agendamento");
     revalidatePath("/");
 
+    await recordAudit({
+      actor,
+      action: id ? "UPDATE" : "CREATE",
+      entity: "Artist",
+      entityId: artistId,
+      summary: `${id ? "Editou" : "Cadastrou"} o artista ${data.name}.`,
+    });
+
     return { ok: true, id: artistId, message: "Artista salvo." };
   });
 }
 
 export async function deleteArtist(id: string): Promise<CrudResult> {
-  return guarded("admin", async () => {
+  return guarded("admin", async (actor) => {
     const appointments = await prisma.appointment.count({ where: { artistId: id } });
     if (appointments > 0) {
       return {
@@ -205,7 +231,16 @@ export async function deleteArtist(id: string): Promise<CrudResult> {
       };
     }
 
-    await prisma.artist.delete({ where: { id } });
+    const removed = await prisma.artist.delete({ where: { id } });
+
+    await recordAudit({
+      actor,
+      action: "DELETE",
+      entity: "Artist",
+      entityId: id,
+      summary: `Excluiu o artista ${removed.name}.`,
+    });
+
     revalidatePath("/admin/artistas");
     revalidatePath("/artistas");
     return { ok: true, message: "Artista excluído." };
@@ -217,7 +252,7 @@ export async function deleteArtist(id: string): Promise<CrudResult> {
 // ---------------------------------------------------------------------------
 
 export async function saveService(input: unknown): Promise<CrudResult> {
-  return guarded("admin", async () => {
+  return guarded("admin", async (actor) => {
     const parsed = serviceSchema.safeParse(input);
     if (!parsed.success) {
       return {
@@ -248,12 +283,20 @@ export async function saveService(input: unknown): Promise<CrudResult> {
     revalidatePath("/agendamento");
     revalidatePath("/");
 
+    await recordAudit({
+      actor,
+      action: id ? "UPDATE" : "CREATE",
+      entity: "Service",
+      entityId: service.id,
+      summary: `${id ? "Editou" : "Cadastrou"} o serviço ${service.name}.`,
+    });
+
     return { ok: true, id: service.id, message: "Serviço salvo." };
   });
 }
 
 export async function deleteService(id: string): Promise<CrudResult> {
-  return guarded("admin", async () => {
+  return guarded("admin", async (actor) => {
     const appointments = await prisma.appointment.count({ where: { serviceId: id } });
     if (appointments > 0) {
       return {
@@ -262,7 +305,16 @@ export async function deleteService(id: string): Promise<CrudResult> {
       };
     }
 
-    await prisma.service.delete({ where: { id } });
+    const removed = await prisma.service.delete({ where: { id } });
+
+    await recordAudit({
+      actor,
+      action: "DELETE",
+      entity: "Service",
+      entityId: id,
+      summary: `Excluiu o serviço ${removed.name}.`,
+    });
+
     revalidatePath("/admin/servicos");
     revalidatePath("/servicos");
     return { ok: true, message: "Serviço excluído." };
@@ -351,7 +403,7 @@ export async function deleteTestimonial(id: string): Promise<CrudResult> {
 // ---------------------------------------------------------------------------
 
 export async function saveStudioSettings(input: unknown): Promise<CrudResult> {
-  return guarded("admin", async () => {
+  return guarded("admin", async (actor) => {
     const parsed = studioSettingsSchema.safeParse(input);
     if (!parsed.success) {
       return {
@@ -381,6 +433,14 @@ export async function saveStudioSettings(input: unknown): Promise<CrudResult> {
           },
         });
       }
+    });
+
+    await recordAudit({
+      actor,
+      action: "UPDATE",
+      entity: "StudioSettings",
+      entityId: "studio",
+      summary: "Alterou as configurações do estúdio.",
     });
 
     // O funcionamento afeta a disponibilidade em todo o site.

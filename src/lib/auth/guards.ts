@@ -8,7 +8,7 @@ import { getSession, type SessionPayload } from "@/lib/auth/session";
 /**
  * Guardas de autorização usadas em páginas e Server Actions do admin.
  *
- * O middleware já barra requisições sem cookie em /admin/*, mas ele NÃO é a
+ * O proxy já barra requisições sem cookie em /admin/*, mas ele NÃO é a
  * única linha de defesa: um Server Action pode ser invocado diretamente por
  * POST, então toda escrita revalida aqui — inclusive contra o banco, para que
  * um usuário desativado logo após receber o token perca o acesso na hora.

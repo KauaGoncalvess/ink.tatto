@@ -94,7 +94,7 @@ export default async function ArtistPage({ params }: Props) {
             </div>
 
             <div className="lg:col-span-7 lg:pt-6">
-              <span className="overline text-blood-500">
+              <span className="overline text-blood-400">
                 {artist.handle ?? "Artista"}
               </span>
 

@@ -216,7 +216,7 @@ function CrudDialogBody<T>({
               size="sm"
               onClick={() => setConfirmDelete(true)}
               disabled={pending}
-              className="text-blood-400 hover:text-blood-500"
+              className="text-blood-400 hover:text-blood-300"
             >
               <Trash2 aria-hidden="true" />
               {deleteLabel}

@@ -13,6 +13,7 @@ import {
   LogOut,
   type LucideIcon,
   Menu,
+  Bell as BellIcon,
   MessageSquareQuote,
   PenTool,
   Settings,
@@ -54,6 +55,7 @@ const NAV: NavEntry[] = [
   { href: "/admin/horarios", label: "Horários", Icon: Timer, adminOnly: true },
   { href: "/admin/galeria", label: "Galeria", Icon: Images },
   { href: "/admin/depoimentos", label: "Depoimentos", Icon: MessageSquareQuote },
+  { href: "/admin/notificacoes", label: "Notificações", Icon: BellIcon },
   { href: "/admin/configuracoes", label: "Configurações", Icon: Settings, adminOnly: true },
 ];
 
@@ -166,7 +168,7 @@ function SidebarContent({
         <ul className="space-y-0.5">
           {entries.map((entry) => {
             const active = isActive(pathname, entry.href);
-            const showBadge = entry.href === "/admin/agendamentos" && unreadCount > 0;
+            const showBadge = entry.href === "/admin/notificacoes" && unreadCount > 0;
 
             return (
               <li key={entry.href}>

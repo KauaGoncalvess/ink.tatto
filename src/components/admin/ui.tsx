@@ -215,7 +215,7 @@ export function StatCard({
       <span
         className={cn(
           "mt-4 block font-display text-4xl tabular-nums",
-          accent ? "text-blood-500" : "text-bone-100",
+          accent ? "text-blood-400" : "text-bone-100",
         )}
       >
         {value}

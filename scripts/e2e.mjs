@@ -93,13 +93,13 @@ check("passo 2: artista selecionado", page.url().includes("artista="));
 
 // Passo 3 — data com vaga
 await daysResponse;
-await page.waitForSelector('[role="gridcell"]');
+await page.waitForSelector('button[role="gridcell"]');
 // Um frame extra para o React aplicar o resultado às células.
 await page.waitForTimeout(500);
 
 let picked = false;
 for (let attempt = 0; attempt < 4 && !picked; attempt += 1) {
-  const enabled = page.locator('[role="gridcell"]:not([disabled])');
+  const enabled = page.locator('button[role="gridcell"]:not([disabled])');
   const total = await enabled.count();
   if (total > 0) {
     await enabled.first().click({ timeout: 5000 });
@@ -167,7 +167,7 @@ const anon = await browser.newContext();
 const anonPage = await anon.newPage();
 await anonPage.goto(`${BASE}/admin/agendamentos`, { waitUntil: "domcontentloaded" });
 check(
-  "rota /admin protegida pelo middleware",
+  "rota /admin protegida pelo proxy",
   anonPage.url().includes("/admin/login"),
   anonPage.url(),
 );

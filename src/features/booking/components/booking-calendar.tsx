@@ -85,6 +85,18 @@ export function BookingCalendar({
     ),
   ];
 
+  // O grid é quebrado em semanas de verdade porque `role="grid"` exige
+  // `role="row"` entre a grade e as células: um grid CSS de 7 colunas até
+  // *parece* uma tabela, mas o leitor de tela não tem como anunciar linha e
+  // coluna sem essa estrutura. Cada semana completa 7 posições para as bordas
+  // do mês não desalinharem as colunas.
+  const weeks: (string | null)[][] = [];
+  for (let index = 0; index < cells.length; index += 7) {
+    const week = cells.slice(index, index + 7);
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
+  }
+
   return (
     <div className="surface p-4 sm:p-6">
       <div className="flex items-center justify-between gap-4">
@@ -116,62 +128,73 @@ export function BookingCalendar({
         </button>
       </div>
 
-      <div className="mt-6 grid grid-cols-7 gap-1" role="grid">
-        {WEEKDAY_SHORT.map((day) => (
-          <div
-            key={day}
-            role="columnheader"
-            className="pb-2 text-center text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-ash-600"
-          >
-            {day}
+      <div className="mt-6" role="grid" aria-label="Escolha a data">
+        <div className="grid grid-cols-7 gap-1" role="row">
+          {WEEKDAY_SHORT.map((day) => (
+            <div
+              key={day}
+              role="columnheader"
+              className="pb-2 text-center text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-ash-600"
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {weeks.map((week, weekIndex) => (
+          <div key={weekIndex} className="grid grid-cols-7 gap-1" role="row">
+            {week.map((dateISO, index) => {
+              if (!dateISO) {
+                // Célula vazia das bordas do mês. Continua sendo `gridcell`
+                // para a linha ter as 7 posições que o leitor de tela anuncia;
+                // sem conteúdo, é lida como célula em branco.
+                return <div key={`empty-${index}`} role="gridcell" />;
+              }
+
+              const outOfRange = dateISO < minDateISO || dateISO > maxDateISO;
+              // Enquanto availableSet é null estamos carregando: a data segue
+              // clicável para não travar a interação, e a lista de horários
+              // resolve o caso de não haver vaga.
+              const unavailable = availableSet ? !availableSet.has(dateISO) : false;
+              const disabled = outOfRange || unavailable;
+              const selected = value === dateISO;
+              const isToday = dateISO === today;
+
+              return (
+                <button
+                  key={dateISO}
+                  type="button"
+                  role="gridcell"
+                  disabled={disabled}
+                  aria-selected={selected}
+                  aria-label={new Intl.DateTimeFormat("pt-BR", {
+                    dateStyle: "full",
+                    timeZone: "UTC",
+                  }).format(new Date(`${dateISO}T00:00:00Z`))}
+                  onClick={() => onChange(dateISO)}
+                  className={cn(
+                    "relative grid aspect-square place-items-center border text-sm transition-colors",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood-500",
+                    selected
+                      ? "border-blood-500 bg-blood-500 font-semibold text-bone-100"
+                      : disabled
+                        ? "cursor-not-allowed border-transparent text-ash-600 line-through decoration-ash-600/60"
+                        : "border-hairline text-bone-200 hover:border-blood-500 hover:bg-ink-800",
+                    isLoading && !selected && "opacity-60",
+                  )}
+                >
+                  {Number(dateISO.slice(8))}
+                  {isToday && !selected ? (
+                    <span
+                      aria-hidden="true"
+                      className="absolute bottom-1 size-1 rounded-full bg-blood-500"
+                    />
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
         ))}
-
-        {cells.map((dateISO, index) => {
-          if (!dateISO) return <div key={`empty-${index}`} aria-hidden="true" />;
-
-          const outOfRange = dateISO < minDateISO || dateISO > maxDateISO;
-          // Enquanto availableSet é null estamos carregando: a data segue
-          // clicável para não travar a interação, e a lista de horários
-          // resolve o caso de não haver vaga.
-          const unavailable = availableSet ? !availableSet.has(dateISO) : false;
-          const disabled = outOfRange || unavailable;
-          const selected = value === dateISO;
-          const isToday = dateISO === today;
-
-          return (
-            <button
-              key={dateISO}
-              type="button"
-              role="gridcell"
-              disabled={disabled}
-              aria-selected={selected}
-              aria-label={new Intl.DateTimeFormat("pt-BR", {
-                dateStyle: "full",
-                timeZone: "UTC",
-              }).format(new Date(`${dateISO}T00:00:00Z`))}
-              onClick={() => onChange(dateISO)}
-              className={cn(
-                "relative grid aspect-square place-items-center border text-sm transition-colors",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood-500",
-                selected
-                  ? "border-blood-500 bg-blood-500 font-semibold text-bone-100"
-                  : disabled
-                    ? "cursor-not-allowed border-transparent text-ash-700 line-through decoration-ash-700/60"
-                    : "border-hairline text-bone-200 hover:border-blood-500 hover:bg-ink-800",
-                isLoading && !selected && "opacity-60",
-              )}
-            >
-              {Number(dateISO.slice(8))}
-              {isToday && !selected ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute bottom-1 size-1 rounded-full bg-blood-500"
-                />
-              ) : null}
-            </button>
-          );
-        })}
       </div>
 
       <p className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-hairline pt-4 text-[0.6875rem] text-ash-500">

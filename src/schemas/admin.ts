@@ -26,6 +26,23 @@ const optionalUrl = z
   .optional()
   .or(z.literal("").transform(() => undefined));
 
+/**
+ * Caminho de imagem aceito nos formulários do painel.
+ *
+ * Aceita um arquivo gerenciado pelo próprio sistema (`/uploads/...` ou
+ * `/images/...`) ou uma URL absoluta, que é o formato devolvido pelo driver de
+ * storage em bucket. Recusa qualquer outra coisa para o campo não virar um
+ * vetor de injeção de conteúdo externo no site.
+ */
+const imagePathSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine(
+    (value) => /^\/(uploads|images)\//.test(value) || /^https:\/\/\S+$/.test(value),
+    "Envie uma imagem ou informe um caminho começando com /images/.",
+  );
+
 // ---------------------------------------------------------------------------
 // Clientes
 // ---------------------------------------------------------------------------
@@ -117,7 +134,9 @@ export const artistSchema = z.object({
     .email("E-mail inválido.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  avatarUrl: optionalText(300),
+  avatarUrl: imagePathSchema
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   isActive: z.boolean().default(true),
   acceptsBooking: z.boolean().default(true),
   displayOrder: z.coerce.number().int().min(0).max(999).default(0),
@@ -141,7 +160,9 @@ export const serviceSchema = z.object({
     .max(200),
   description: z.string().trim().min(20, "Descreva o serviço.").max(3000),
   icon: z.string().trim().min(1).max(40).default("Sparkles"),
-  imageUrl: optionalText(300),
+  imageUrl: imagePathSchema
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   durationMin: z.coerce
     .number()
     .int()
@@ -169,7 +190,7 @@ export const galleryItemSchema = z.object({
   id: z.string().optional(),
   title: z.string().trim().min(2, "Informe um título.").max(120),
   style: z.string().trim().min(2, "Informe o estilo.").max(40),
-  imageUrl: z.string().trim().min(1, "Informe o caminho da imagem.").max(300),
+  imageUrl: imagePathSchema.min(1, "Envie a foto do trabalho."),
   alt: z
     .string()
     .trim()
@@ -195,7 +216,9 @@ export type GalleryItemInput = z.input<typeof galleryItemSchema>;
 export const testimonialSchema = z.object({
   id: z.string().optional(),
   clientName: z.string().trim().min(2, "Informe o nome do cliente.").max(80),
-  avatarUrl: optionalText(300),
+  avatarUrl: imagePathSchema
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   rating: z.coerce.number().int().min(1, "A nota vai de 1 a 5.").max(5),
   content: z.string().trim().min(20, "O depoimento está muito curto.").max(1000),
   serviceName: optionalText(120),

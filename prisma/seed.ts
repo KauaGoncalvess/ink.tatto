@@ -57,6 +57,10 @@ async function clearDatabase() {
   // Ordem importa por causa das FKs; deleteMany respeita o onDelete mas é mais
   // previsível apagar explicitamente das folhas para a raiz.
   await prisma.notification.deleteMany();
+  // A auditoria não cai junto com o usuário (`onDelete: SetNull`, para o
+  // histórico sobreviver a uma exclusão real). Num seed isso deixaria trilha
+  // órfã de uma base que não existe mais, então some explicitamente.
+  await prisma.auditLog.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.blockedTime.deleteMany();
   await prisma.availability.deleteMany();

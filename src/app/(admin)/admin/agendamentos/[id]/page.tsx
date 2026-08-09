@@ -11,10 +11,9 @@ import {
 } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 import { AppointmentActions } from "@/features/appointments/components/appointment-actions";
-import { RescheduleForm } from "@/features/appointments/components/reschedule-form";
-import { InternalNotes } from "@/features/appointments/components/internal-notes";
+import { EditAppointmentForm } from "@/features/appointments/components/edit-appointment-form";
 import { getAppointment } from "@/features/appointments/queries";
-import { getBookableArtists } from "@/features/booking/queries";
+import { getBookableArtists, getBookableServices } from "@/features/booking/queries";
 import { formatInStudio, toDateISO, toTimeString } from "@/lib/datetime";
 import { formatCurrency, formatPhone } from "@/lib/utils";
 import { whatsappLink } from "@/config/site";
@@ -31,9 +30,10 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function AppointmentDetailPage({ params }: Props) {
   const { id } = await params;
-  const [appointment, artists] = await Promise.all([
+  const [appointment, artists, services] = await Promise.all([
     getAppointment(id),
     getBookableArtists(),
+    getBookableServices(),
   ]);
 
   if (!appointment) notFound();
@@ -129,20 +129,33 @@ export default async function AppointmentDetailPage({ params }: Props) {
             </Panel>
           ) : null}
 
-          <RescheduleForm
+          <EditAppointmentForm
             id={appointment.id}
-            currentArtistId={appointment.artistId}
-            currentDateISO={dateISO}
-            currentTime={time}
-            serviceId={appointment.serviceId}
+            code={appointment.code}
+            current={{
+              clientId: appointment.clientId,
+              clientName: appointment.client.name,
+              clientPhone: appointment.client.phone,
+              artistId: appointment.artistId,
+              serviceId: appointment.serviceId,
+              dateISO,
+              time,
+              status: appointment.status,
+              priceEstimate: appointment.priceEstimate,
+              internalNotes: appointment.internalNotes ?? "",
+              cancelledReason: appointment.cancelledReason ?? "",
+            }}
             artists={artists.map((artist) => ({
               id: artist.id,
               name: artist.name,
               serviceIds: artist.services.map((link) => link.serviceId),
             }))}
+            services={services.map((service) => ({
+              id: service.id,
+              name: service.name,
+              durationMin: service.durationMin,
+            }))}
           />
-
-          <InternalNotes id={appointment.id} value={appointment.internalNotes ?? ""} />
         </div>
 
         {/* Cliente */}

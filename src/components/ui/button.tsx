@@ -35,7 +35,7 @@ const buttonVariants = cva(
           "bg-ink-800 text-bone-100 border border-hairline hover:bg-ink-700 hover:border-hairline-strong",
         danger:
           "border border-blood-700 bg-transparent text-blood-400 hover:bg-blood-600 hover:text-bone-100 hover:border-blood-600",
-        link: "bg-transparent text-blood-400 hover:text-blood-500 underline-offset-4 hover:underline p-0 h-auto tracking-[0.1em]",
+        link: "bg-transparent text-blood-400 hover:text-blood-300 underline-offset-4 hover:underline p-0 h-auto tracking-[0.1em]",
       },
       size: {
         sm: "h-9 px-4 text-[0.6875rem] [&_svg]:size-3.5",

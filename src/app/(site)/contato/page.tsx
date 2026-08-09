@@ -168,7 +168,7 @@ export default function ContactPage() {
                     href={`https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=17/${latitude}/${longitude}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-semibold uppercase tracking-[0.14em] text-blood-400 underline underline-offset-4 hover:text-blood-500"
+                    className="text-xs font-semibold uppercase tracking-[0.14em] text-blood-400 underline underline-offset-4 hover:text-blood-300"
                   >
                     Abrir no mapa
                   </a>
@@ -189,16 +189,17 @@ export default function ContactPage() {
           />
 
           <dl className="mx-auto mt-12 max-w-3xl divide-y divide-hairline border-y border-hairline">
+            {/* O <div> do Reveal é o próprio agrupador do par dt/dd: dentro de
+                um <dl> só vale um nível de <div>, e aninhar dois invalida a
+                lista de definição para leitores de tela. */}
             {faq.map((item, index) => (
-              <Reveal key={item.question} delay={index * 70}>
-                <div className="py-6">
-                  <dt className="text-sm font-bold uppercase tracking-[0.08em] text-bone-100">
-                    {item.question}
-                  </dt>
-                  <dd className="mt-3 text-sm leading-relaxed text-ash-400">
-                    {item.answer}
-                  </dd>
-                </div>
+              <Reveal key={item.question} delay={index * 70} className="py-6">
+                <dt className="text-sm font-bold uppercase tracking-[0.08em] text-bone-100">
+                  {item.question}
+                </dt>
+                <dd className="mt-3 text-sm leading-relaxed text-ash-400">
+                  {item.answer}
+                </dd>
               </Reveal>
             ))}
           </dl>

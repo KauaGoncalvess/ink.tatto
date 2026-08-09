@@ -13,6 +13,7 @@ import {
   Textarea,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { ImageUploadField } from "@/components/ui/image-upload";
 import { deleteGalleryItem, saveGalleryItem } from "@/features/admin/actions";
 
 export type GalleryFormData = {
@@ -79,7 +80,7 @@ export function GalleryDialog({
     <CrudDialog
       mode={mode}
       title={mode === "create" ? "Novo trabalho" : "Editar trabalho"}
-      description="Suba o arquivo em /public/images/gallery e informe o caminho abaixo."
+      description="Envie a foto do trabalho e descreva a imagem — o texto alternativo é o que o leitor de tela anuncia."
       triggerLabel="Novo trabalho"
       buildValues={() => ({
         ...(form.id ? { id: form.id } : {}),
@@ -135,20 +136,16 @@ export function GalleryDialog({
             </Field>
           </div>
 
-          <Field>
-            <Label htmlFor="gal-image" required>
-              Caminho da imagem
-            </Label>
-            <Input
-              id="gal-image"
-              value={form.imageUrl}
-              onChange={(event) => patch({ imageUrl: event.target.value })}
-              disabled={disabled}
-              placeholder="/images/gallery/work-01.jpg"
-              aria-invalid={Boolean(errors.imageUrl)}
-            />
-            <FieldError>{errors.imageUrl}</FieldError>
-          </Field>
+          <ImageUploadField
+            label="Foto do trabalho"
+            required
+            aspect="portrait"
+            folder="gallery"
+            value={form.imageUrl}
+            onChange={(path) => patch({ imageUrl: path })}
+            disabled={disabled}
+            error={errors.imageUrl}
+          />
 
           <Field>
             <Label htmlFor="gal-alt" required>

@@ -150,7 +150,7 @@ function NavLink({
       aria-current={active ? "page" : undefined}
       className={cn(
         "group relative overline py-2 transition-colors",
-        active ? "text-blood-500" : "text-bone-200 hover:text-bone-100",
+        active ? "text-blood-400" : "text-bone-200 hover:text-bone-100",
       )}
     >
       {children}
@@ -192,8 +192,8 @@ function MobileMenu({
                 className={cn(
                   "flex items-baseline gap-4 border-b border-hairline py-4 transition-colors",
                   isActive(item.href)
-                    ? "text-blood-500"
-                    : "text-bone-100 hover:text-blood-400",
+                    ? "text-blood-400"
+                    : "text-bone-100 hover:text-blood-300",
                 )}
               >
                 <span className="overline text-ash-600 tabular-nums">

@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 /**
  * Layout do painel.
  *
- * O middleware já barrou quem não tem cookie, mas `requireSession` roda de
- * novo aqui: middleware protege a navegação, esta chamada protege o render.
+ * O proxy já barrou quem não tem cookie, mas `requireSession` roda de
+ * novo aqui: o proxy protege a navegação, esta chamada protege o render.
  *
  * A rota /admin/login tem o próprio layout (fora desta árvore) justamente por
  * não poder exigir sessão.

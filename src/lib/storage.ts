@@ -5,24 +5,40 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 /**
- * Armazenamento de arquivos enviados pelos clientes.
+ * Armazenamento de arquivos enviados.
  *
- * Implementação local (grava em /public/uploads), atrás de uma interface
- * pequena para trocar por S3/R2/UploadThing sem tocar em quem chama.
+ * Duas implementações, escolhidas por variável de ambiente:
  *
- * ATENÇÃO PARA DEPLOY: em plataformas serverless (Vercel, Lambda) o sistema de
- * arquivos é efêmero e as imagens somem no próximo deploy ou cold start. Para
- * produção, implemente `StorageAdapter` com um bucket e troque a constante
- * `storage` abaixo — nenhuma outra linha do projeto muda.
+ *   local (padrão)  grava em /public/uploads. Simples, zero configuração,
+ *                   perfeito em VPS/container com volume persistente.
+ *   s3              qualquer bucket compatível com S3 (AWS, Cloudflare R2,
+ *                   Backblaze B2, MinIO). Necessário em plataformas
+ *                   serverless, onde o disco é efêmero e as imagens somem
+ *                   no próximo deploy.
+ *
+ * Defina STORAGE_DRIVER=s3 e as credenciais do bucket para trocar. Nenhum
+ * outro arquivo do projeto muda.
  */
 
 export type StoredFile = {
-  /** Caminho público, servido pelo Next. */
+  /** URL pública da imagem (caminho relativo no driver local). */
   path: string;
 };
 
+/** Pastas permitidas. Restringe onde um upload pode aterrissar. */
+export const UPLOAD_FOLDERS = [
+  "uploads",
+  "gallery",
+  "artists",
+  "services",
+  "testimonials",
+  "studio",
+] as const;
+
+export type UploadFolder = (typeof UPLOAD_FOLDERS)[number];
+
 export type StorageAdapter = {
-  save(file: File, buffer: Buffer): Promise<StoredFile>;
+  save(buffer: Buffer, folder: UploadFolder): Promise<StoredFile>;
 };
 
 /** Tipos aceitos, verificados também pela assinatura binária. */
@@ -40,7 +56,7 @@ const EXTENSIONS: Record<string, string> = {
  *
  * O `Content-Type` do multipart é escolhido pelo cliente e pode mentir — um
  * .html renomeado para .jpg passaria na checagem de mime. Ler a assinatura
- * real evita servir conteúdo executável a partir de /uploads.
+ * real evita servir conteúdo executável a partir do diretório público.
  */
 export function sniffImageType(buffer: Buffer): string | null {
   if (buffer.length < 12) return null;
@@ -73,21 +89,169 @@ export function sniffImageType(buffer: Buffer): string | null {
   return null;
 }
 
+/** Nome gerado no servidor: o nome original do cliente nunca toca o disco,
+ *  o que elimina path traversal e colisão de uma vez. */
+function generateName(mime: string): string {
+  return `${Date.now().toString(36)}-${randomBytes(8).toString("hex")}.${EXTENSIONS[mime]}`;
+}
+
+// ---------------------------------------------------------------------------
+// Driver local
+// ---------------------------------------------------------------------------
+
 const localAdapter: StorageAdapter = {
-  async save(_file, buffer) {
+  async save(buffer, folder) {
     const detected = sniffImageType(buffer);
     if (!detected) throw new Error("Formato de imagem não reconhecido.");
 
-    const directory = join(process.cwd(), "public", "uploads");
+    // `uploads` fica na raiz de /public; as demais pastas convivem com as
+    // imagens versionadas do site, em /public/images.
+    const segments =
+      folder === "uploads" ? ["uploads"] : ["images", folder];
+
+    const directory = join(process.cwd(), "public", ...segments);
     await mkdir(directory, { recursive: true });
 
-    // Nome gerado no servidor: o nome original do cliente nunca toca o disco,
-    // o que elimina path traversal e colisão de nomes de uma vez.
-    const name = `${Date.now().toString(36)}-${randomBytes(8).toString("hex")}.${EXTENSIONS[detected]}`;
-
+    const name = generateName(detected);
     await writeFile(join(directory, name), buffer);
-    return { path: `/uploads/${name}` };
+
+    return { path: `/${segments.join("/")}/${name}` };
   },
 };
 
-export const storage: StorageAdapter = localAdapter;
+// ---------------------------------------------------------------------------
+// Driver S3 (compatível com AWS S3, Cloudflare R2, Backblaze B2, MinIO)
+// ---------------------------------------------------------------------------
+
+/**
+ * Implementado com `fetch` e assinatura AWS SigV4 calculada à mão, em vez de
+ * trazer o `@aws-sdk/client-s3` (~2 MB) para o bundle do servidor por causa de
+ * uma única operação PUT.
+ */
+async function hmac(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    key as BufferSource,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(data));
+}
+
+function toHex(buffer: ArrayBuffer): string {
+  return [...new Uint8Array(buffer)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sha256Hex(data: Uint8Array | string): Promise<string> {
+  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
+  return toHex(await crypto.subtle.digest("SHA-256", bytes as BufferSource));
+}
+
+const s3Adapter: StorageAdapter = {
+  async save(buffer, folder) {
+    const detected = sniffImageType(buffer);
+    if (!detected) throw new Error("Formato de imagem não reconhecido.");
+
+    const bucket = requireEnv("S3_BUCKET");
+    const region = process.env.S3_REGION ?? "auto";
+    const accessKey = requireEnv("S3_ACCESS_KEY_ID");
+    const secretKey = requireEnv("S3_SECRET_ACCESS_KEY");
+    // Endpoint próprio para R2/B2/MinIO; vazio usa o da AWS.
+    const endpoint =
+      process.env.S3_ENDPOINT ?? `https://s3.${region}.amazonaws.com`;
+    // URL pública de leitura (CDN ou domínio do bucket).
+    const publicBase = requireEnv("S3_PUBLIC_URL").replace(/\/$/, "");
+
+    const key = `${folder}/${generateName(detected)}`;
+    const url = new URL(`${endpoint.replace(/\/$/, "")}/${bucket}/${key}`);
+
+    const now = new Date();
+    const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+    const dateStamp = amzDate.slice(0, 8);
+    const payloadHash = await sha256Hex(new Uint8Array(buffer));
+
+    const headers: Record<string, string> = {
+      host: url.host,
+      "content-type": detected,
+      "x-amz-content-sha256": payloadHash,
+      "x-amz-date": amzDate,
+    };
+
+    const signedHeaders = Object.keys(headers).sort().join(";");
+    const canonicalHeaders = Object.keys(headers)
+      .sort()
+      .map((name) => `${name}:${headers[name]}\n`)
+      .join("");
+
+    const canonicalRequest = [
+      "PUT",
+      url.pathname,
+      "",
+      canonicalHeaders,
+      signedHeaders,
+      payloadHash,
+    ].join("\n");
+
+    const scope = `${dateStamp}/${region}/s3/aws4_request`;
+    const stringToSign = [
+      "AWS4-HMAC-SHA256",
+      amzDate,
+      scope,
+      await sha256Hex(canonicalRequest),
+    ].join("\n");
+
+    let signingKey = await hmac(
+      new TextEncoder().encode(`AWS4${secretKey}`),
+      dateStamp,
+    );
+    for (const part of [region, "s3", "aws4_request"]) {
+      signingKey = await hmac(signingKey, part);
+    }
+    const signature = toHex(await hmac(signingKey, stringToSign));
+
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: {
+        ...headers,
+        Authorization: `AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+      },
+      body: new Uint8Array(buffer),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Falha ao enviar para o bucket (HTTP ${response.status}). Confira as credenciais e a política do bucket.`,
+      );
+    }
+
+    return { path: `${publicBase}/${key}` };
+  },
+};
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `${name} não definida. Necessária quando STORAGE_DRIVER=s3 (ver .env.example).`,
+    );
+  }
+  return value;
+}
+
+// ---------------------------------------------------------------------------
+
+export const storageDriver = process.env.STORAGE_DRIVER === "s3" ? "s3" : "local";
+
+export const storage: StorageAdapter =
+  storageDriver === "s3" ? s3Adapter : localAdapter;
+
+/** Um caminho é uma imagem enviada (e não uma URL externa arbitrária)? */
+export function isManagedImagePath(value: string): boolean {
+  if (value.startsWith("/uploads/") || value.startsWith("/images/")) return true;
+
+  const publicBase = process.env.S3_PUBLIC_URL;
+  return Boolean(publicBase && value.startsWith(publicBase.replace(/\/$/, "")));
+}

@@ -13,6 +13,7 @@ import {
   Textarea,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { ImageUploadField } from "@/components/ui/image-upload";
 import { ServiceIcon } from "@/components/site/service-icon";
 import { deleteService, saveService } from "@/features/admin/actions";
 
@@ -231,17 +232,15 @@ export function ServiceDialog({
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field>
-              <Label htmlFor="svc-image">Caminho da imagem</Label>
-              <Input
-                id="svc-image"
-                value={form.imageUrl}
-                onChange={(event) => patch({ imageUrl: event.target.value })}
-                disabled={disabled}
-                placeholder="/images/services/nome-do-servico.jpg"
-              />
-              <FieldHint>Arquivo dentro de /public.</FieldHint>
-            </Field>
+            <ImageUploadField
+              label="Imagem do serviço"
+              aspect="wide"
+              folder="services"
+              value={form.imageUrl}
+              onChange={(path) => patch({ imageUrl: path })}
+              disabled={disabled}
+              hint="Aparece atrás do card, em opacidade baixa."
+            />
 
             <Field>
               <Label htmlFor="svc-order">Ordem de exibição</Label>

@@ -9,6 +9,7 @@ import {
   TableWrap,
   Th,
 } from "@/components/admin/ui";
+import { Pagination } from "@/components/admin/pagination";
 import { ClientDialog } from "@/features/admin/components/client-dialog";
 import { SearchBox } from "@/features/admin/components/search-box";
 import { prisma } from "@/lib/prisma";
@@ -18,34 +19,47 @@ import { formatPhone } from "@/lib/utils";
 export const metadata = { title: "Clientes" };
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ busca?: string }> };
+type Props = { searchParams: Promise<{ busca?: string; pagina?: string }> };
+
+const PER_PAGE = 30;
 
 export default async function ClientsPage({ searchParams }: Props) {
-  const { busca } = await searchParams;
-  const search = busca?.trim();
+  const params = await searchParams;
+  const search = params.busca?.trim();
 
-  const clients = await prisma.client.findMany({
-    where: search
-      ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-            { phone: { contains: search.replace(/\D/g, "") } },
-          ],
-        }
-      : undefined,
-    orderBy: { createdAt: "desc" },
-    take: 200,
-    include: {
-      _count: { select: { appointments: true } },
-    },
-  });
+  const requestedPage = Number.parseInt(params.pagina ?? "1", 10);
+  const page = Number.isFinite(requestedPage) ? Math.max(requestedPage, 1) : 1;
+
+  const where = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+          { phone: { contains: search.replace(/\D/g, "") || search } },
+        ],
+      }
+    : undefined;
+
+  // Contagem e página na mesma ida ao banco. Sem paginação, um estúdio com
+  // anos de histórico carregaria milhares de linhas numa requisição.
+  const [clients, total] = await Promise.all([
+    prisma.client.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PER_PAGE,
+      take: PER_PAGE,
+      include: { _count: { select: { appointments: true } } },
+    }),
+    prisma.client.count({ where }),
+  ]);
+
+  const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
 
   return (
     <>
       <AdminPageHeader
         title="Clientes"
-        description={`${clients.length} ${clients.length === 1 ? "cliente" : "clientes"} ${search ? "encontrados na busca" : "cadastrados"}.`}
+        description={`${total} ${total === 1 ? "cliente" : "clientes"} ${search ? "encontrados na busca" : "cadastrados"}.`}
         action={<ClientDialog mode="create" />}
       />
 
@@ -143,6 +157,14 @@ export default async function ClientsPage({ searchParams }: Props) {
           </>
         )}
       </Panel>
+
+      <Pagination
+        basePath="/admin/clientes"
+        currentPage={page}
+        pageCount={pageCount}
+        total={total}
+        params={params}
+      />
     </>
   );
 }

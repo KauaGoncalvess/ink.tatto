@@ -7,16 +7,18 @@ import { Prisma, type AppointmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hasConflict } from "@/lib/availability";
 import { AuthorizationError, requireUser } from "@/lib/auth/guards";
-import { notify } from "@/lib/notifier";
+import { recordAudit } from "@/lib/audit";
+import type { SessionPayload } from "@/lib/auth/session";
+import { notify, notifyClient } from "@/lib/notifier";
 import { dateISOSchema, timeSchema } from "@/schemas/booking";
 import { recomputeSlotsForValidation } from "@/features/booking/queries";
-import { zonedDateTimeToUtc } from "@/lib/datetime";
+import { formatInStudio, zonedDateTimeToUtc } from "@/lib/datetime";
 import { getStudioRules } from "@/features/booking/queries";
 
 /**
  * Ações administrativas sobre agendamentos.
  *
- * Toda ação revalida a sessão (requireUser) antes de escrever: o middleware
+ * Toda ação revalida a sessão (requireUser) antes de escrever: o proxy
  * protege a navegação, mas uma Server Action pode ser invocada diretamente.
  */
 
@@ -26,11 +28,11 @@ export type ActionResult =
 
 /** Envelope comum: autoriza, executa e converte exceções em resultado tratável. */
 async function guarded(
-  run: () => Promise<ActionResult>,
+  run: (actor: SessionPayload) => Promise<ActionResult>,
 ): Promise<ActionResult> {
   try {
-    await requireUser();
-    return await run();
+    const actor = await requireUser();
+    return await run(actor);
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return { ok: false, error: error.message };
@@ -60,7 +62,7 @@ export async function updateAppointmentStatus(
   status: AppointmentStatus,
   reason?: string,
 ): Promise<ActionResult> {
-  return guarded(async () => {
+  return guarded(async (actor) => {
     const parsedStatus = statusSchema.safeParse(status);
     if (!parsedStatus.success) {
       return { ok: false, error: "Status inválido." };
@@ -69,8 +71,9 @@ export async function updateAppointmentStatus(
     const appointment = await prisma.appointment.findUnique({
       where: { id },
       include: {
-        client: { select: { name: true } },
+        client: { select: { name: true, email: true } },
         service: { select: { name: true } },
+        artist: { select: { name: true } },
       },
     });
     if (!appointment) return { ok: false, error: "Agendamento não encontrado." };
@@ -93,7 +96,37 @@ export async function updateAppointmentStatus(
         title: isCancelling ? "Agendamento cancelado" : "Agendamento confirmado",
         message: `${appointment.client.name} — ${appointment.service.name}`,
       });
+
+      // Aviso ao cliente, quando ele deixou e-mail.
+      if (appointment.client.email) {
+        await notifyClient({
+          type: isCancelling ? "APPOINTMENT_CANCELLED" : "APPOINTMENT_CONFIRMED",
+          appointmentId: id,
+          to: appointment.client.email,
+          title: isCancelling ? "Agendamento cancelado" : "Horário confirmado",
+          message: isCancelling
+            ? `Seu horário foi cancelado. Se quiser remarcar, é só falar com a gente.`
+            : `Seu horário está confirmado. Nos vemos em breve!`,
+          details: [
+            { label: "Reserva", value: appointment.code },
+            { label: "Serviço", value: appointment.service.name },
+            { label: "Artista", value: appointment.artist.name },
+            {
+              label: "Data",
+              value: formatInStudio(appointment.startsAt, "dd/MM/yyyy 'às' HH:mm"),
+            },
+          ],
+        });
+      }
     }
+
+    await recordAudit({
+      actor,
+      action: "STATUS_CHANGE",
+      entity: "Appointment",
+      entityId: id,
+      summary: `Mudou ${appointment.code} de ${appointment.status} para ${parsedStatus.data}${reason ? ` — ${reason}` : ""}.`,
+    });
 
     revalidateAdmin();
     return { ok: true, message: "Status atualizado." };
@@ -118,7 +151,7 @@ const rescheduleSchema = z.object({
 export async function rescheduleAppointment(
   input: unknown,
 ): Promise<ActionResult> {
-  return guarded(async () => {
+  return guarded(async (actor) => {
     const parsed = rescheduleSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -189,6 +222,14 @@ export async function rescheduleAppointment(
       message: `Novo horário: ${parsed.data.dateISO} às ${parsed.data.time}.`,
     });
 
+    await recordAudit({
+      actor,
+      action: "RESCHEDULE",
+      entity: "Appointment",
+      entityId: current.id,
+      summary: `Remarcou ${current.code} para ${parsed.data.dateISO} às ${parsed.data.time}.`,
+    });
+
     revalidateAdmin();
     return {
       ok: true,
@@ -220,7 +261,12 @@ export async function updateAppointmentNotes(input: unknown): Promise<ActionResu
 }
 
 export async function deleteAppointment(id: string): Promise<ActionResult> {
-  return guarded(async () => {
+  return guarded(async (actor) => {
+    const target = await prisma.appointment.findUnique({
+      where: { id },
+      select: { code: true },
+    });
+
     try {
       await prisma.appointment.delete({ where: { id } });
     } catch (error) {
@@ -232,6 +278,14 @@ export async function deleteAppointment(id: string): Promise<ActionResult> {
       }
       throw error;
     }
+
+    await recordAudit({
+      actor,
+      action: "DELETE",
+      entity: "Appointment",
+      entityId: id,
+      summary: `Excluiu o agendamento ${target?.code ?? id}.`,
+    });
 
     revalidateAdmin();
     return { ok: true, message: "Agendamento excluído." };
@@ -259,7 +313,7 @@ const blockSchema = z
   );
 
 export async function createBlockedTime(input: unknown): Promise<ActionResult> {
-  return guarded(async () => {
+  return guarded(async (actor) => {
     const parsed = blockSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -298,6 +352,13 @@ export async function createBlockedTime(input: unknown): Promise<ActionResult> {
         reason: parsed.data.reason,
         note: parsed.data.note || null,
       },
+    });
+
+    await recordAudit({
+      actor,
+      action: "CREATE",
+      entity: "BlockedTime",
+      summary: `Bloqueou ${parsed.data.fromDateISO} ${parsed.data.fromTime} → ${parsed.data.toDateISO} ${parsed.data.toTime}${artistId ? "" : " (estúdio inteiro)"}.`,
     });
 
     revalidateAdmin();

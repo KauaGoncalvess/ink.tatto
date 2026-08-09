@@ -9,7 +9,8 @@ import { hasConflict } from "@/lib/availability";
 import { clientIp, hit, RATE_LIMITS } from "@/lib/rate-limit";
 import { createAppointmentSchema } from "@/schemas/booking";
 import { recomputeSlotsForValidation } from "@/features/booking/queries";
-import { notify } from "@/lib/notifier";
+import { formatInStudio } from "@/lib/datetime";
+import { notify, notifyClient } from "@/lib/notifier";
 
 /**
  * Criação de agendamento pelo site público.
@@ -61,7 +62,11 @@ export async function createAppointment(
 ): Promise<BookingResult> {
   // ---- Rate limit --------------------------------------------------------
   const ip = clientIp(await headers());
-  const limit = hit(`booking:${ip}`, RATE_LIMITS.booking.limit, RATE_LIMITS.booking.windowMs);
+  const limit = await hit(
+    `booking:${ip}`,
+    RATE_LIMITS.booking.limit,
+    RATE_LIMITS.booking.windowMs,
+  );
   if (!limit.ok) {
     return {
       ok: false,
@@ -213,6 +218,28 @@ export async function createAppointment(
       title: "Novo agendamento solicitado",
       message: `${data.name} solicitou ${service.name} com ${artist.name}.`,
     });
+
+    // Recibo para o cliente. Sai só se o canal de e-mail estiver configurado
+    // e o cliente tiver informado endereço — caso contrário vira um registro
+    // in-app, sem falha silenciosa.
+    if (data.email) {
+      await notifyClient({
+        type: "APPOINTMENT_CREATED",
+        appointmentId: created.id,
+        to: data.email,
+        title: "Agendamento solicitado",
+        message: `Recebemos seu pedido de horário, ${data.name.split(" ")[0]}. Em breve confirmamos pelo WhatsApp.`,
+        details: [
+          { label: "Reserva", value: created.code },
+          { label: "Serviço", value: service.name },
+          { label: "Artista", value: artist.name },
+          {
+            label: "Data",
+            value: formatInStudio(created.startsAt, "dd/MM/yyyy 'às' HH:mm"),
+          },
+        ],
+      });
+    }
 
     revalidatePath("/admin");
     revalidatePath("/admin/agendamentos");

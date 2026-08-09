@@ -126,7 +126,7 @@ export function Gallery({ items, layout = "masonry", className }: Props) {
                   <span className="block truncate text-xs font-semibold uppercase tracking-[0.1em] text-bone-100">
                     {item.title}
                   </span>
-                  <span className="mt-1 block text-[0.625rem] uppercase tracking-[0.16em] text-blood-500">
+                  <span className="mt-1 block text-[0.625rem] uppercase tracking-[0.16em] text-blood-400">
                     {item.style}
                   </span>
                 </span>

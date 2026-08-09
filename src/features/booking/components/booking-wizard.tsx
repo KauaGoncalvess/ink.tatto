@@ -447,7 +447,7 @@ function StepHeading({
 }) {
   return (
     <div className="mb-8">
-      <span className="overline text-blood-500">{step}</span>
+      <span className="overline text-blood-400">{step}</span>
       <h2 className="display-title mt-3 text-[clamp(1.5rem,3.5vw,2.5rem)]">{title}</h2>
       <p className="mt-3 max-w-lg text-sm leading-relaxed text-ash-400">{description}</p>
     </div>
@@ -553,7 +553,7 @@ function StepArtist({
                     {artist.name}
                   </span>
                   {artist.handle ? (
-                    <span className="mt-0.5 block text-[0.625rem] uppercase tracking-[0.16em] text-blood-500">
+                    <span className="mt-0.5 block text-[0.625rem] uppercase tracking-[0.16em] text-blood-400">
                       {artist.handle}
                     </span>
                   ) : null}
@@ -653,7 +653,7 @@ function StepDateTime({
                     href={whatsappLink()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blood-400 underline underline-offset-4 hover:text-blood-500"
+                    className="text-blood-400 underline underline-offset-4 hover:text-blood-300"
                   >
                     fale com o estúdio
                   </a>
@@ -708,6 +708,7 @@ function StepDetails({
   onBack: () => void;
   onNext: () => void;
 }) {
+  const returning = useReturningClient(details.phone);
   const [uploading, setUploading] = React.useState(false);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -784,7 +785,9 @@ function StepDetails({
             <FieldError id="bk-phone-error">{errors.phone}</FieldError>
             {!errors.phone ? (
               <FieldHint id="bk-phone-hint">
-                É por aqui que o estúdio confirma seu horário.
+                {returning
+                  ? `Que bom te ver de novo, ${returning.firstName}!`
+                  : "É por aqui que o estúdio confirma seu horário."}
               </FieldHint>
             ) : null}
           </Field>
@@ -1085,23 +1088,26 @@ function SummaryRow({
   value?: string;
   capitalize?: boolean;
 }) {
+  // O ícone vive dentro do <dt>: um <span> solto entre <dt> e <dd> quebraria
+  // o agrupamento da lista de definição. O <dd> se alinha ao rótulo com um
+  // recuo igual à largura do ícone (size-4) mais o gap.
   return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 text-blood-500">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <dt className="text-[0.625rem] uppercase tracking-[0.16em] text-ash-600">
-          {label}
-        </dt>
-        <dd
-          className={cn(
-            "mt-1 break-words text-sm",
-            value ? "text-bone-100" : "text-ash-600",
-            capitalize && "first-letter:uppercase",
-          )}
-        >
-          {value ?? "—"}
-        </dd>
-      </span>
+    <div className="min-w-0">
+      <dt className="flex items-center gap-3 text-[0.625rem] uppercase tracking-[0.16em] text-ash-600">
+        <span className="shrink-0 text-blood-500" aria-hidden="true">
+          {icon}
+        </span>
+        {label}
+      </dt>
+      <dd
+        className={cn(
+          "mt-1 break-words pl-7 text-sm",
+          value ? "text-bone-100" : "text-ash-600",
+          capitalize && "first-letter:uppercase",
+        )}
+      >
+        {value ?? "—"}
+      </dd>
     </div>
   );
 }
@@ -1155,4 +1161,51 @@ function EmptyState({
       </Button>
     </div>
   );
+}
+
+/**
+ * Reconhece um cliente que já tem cadastro, pelo telefone.
+ *
+ * Serve só para a saudação: o endpoint devolve apenas o primeiro nome, nunca
+ * dados completos, porque é público e sem autenticação (ver
+ * src/app/api/booking/lookup/route.ts).
+ */
+function useReturningClient(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  const key = digits.length === 10 || digits.length === 11 ? digits : "";
+
+  const [state, setState] = React.useState<{
+    key: string;
+    firstName: string | null;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (!key) return;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch("/api/booking/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: key }),
+        signal: controller.signal,
+      })
+        .then((response) => response.json() as Promise<{ found: boolean; firstName?: string }>)
+        .then((data) =>
+          setState({ key, firstName: data.found ? (data.firstName ?? null) : null }),
+        )
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          setState({ key, firstName: null });
+        });
+    }, 500);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [key]);
+
+  if (state?.key !== key || !state.firstName) return null;
+  return { firstName: state.firstName };
 }

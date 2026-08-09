@@ -13,6 +13,7 @@ import {
   Textarea,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { ImageUploadField } from "@/components/ui/image-upload";
 import { deleteTestimonial, saveTestimonial } from "@/features/admin/actions";
 
 export type TestimonialFormData = {
@@ -167,17 +168,15 @@ export function TestimonialDialog({
               </NativeSelect>
             </Field>
 
-            <Field>
-              <Label htmlFor="tst-avatar">Caminho do avatar</Label>
-              <Input
-                id="tst-avatar"
-                value={form.avatarUrl}
-                onChange={(event) => patch({ avatarUrl: event.target.value })}
-                disabled={disabled}
-                placeholder="/images/testimonials/client-01.jpg"
-              />
-              <FieldHint>Sem avatar, mostramos as iniciais.</FieldHint>
-            </Field>
+            <ImageUploadField
+              label="Avatar"
+              aspect="square"
+              folder="testimonials"
+              value={form.avatarUrl}
+              onChange={(path) => patch({ avatarUrl: path })}
+              disabled={disabled}
+              hint="Opcional — sem foto, mostramos as iniciais."
+            />
 
             <Field>
               <Label htmlFor="tst-order">Ordem</Label>

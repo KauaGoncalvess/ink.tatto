@@ -15,30 +15,43 @@
   --color-ink-700: #1c1c21;
   --color-ink-600: #26262d;
 
-  /* Cinzas de texto ------------------------------------------------------- */
+  /* Cinzas -----------------------------------------------------------------
+     Contrato de contraste, verificado por `npm run a11y` (axe-core):
+     de `ash-600` para cima todos os tons passam de 4.5:1 sobre qualquer fundo
+     `ink-*` — são os únicos que podem carregar texto. `ash-700` é decoração:
+     bordas, réguas e ícones `aria-hidden`. A primeira auditoria reprovou 31
+     estados porque os cinzas de texto eram escuros demais (2.2:1 no pior
+     caso); a hierarquia visual foi mantida deslocando a rampa inteira, e não
+     apagando os degraus. */
   --color-ash-700: #35353d;
-  --color-ash-600: #4a4a52;
-  --color-ash-500: #6b6b73;
-  --color-ash-400: #8a8a93;
-  --color-ash-300: #a8a8b0;
+  --color-ash-600: #85858e;
+  --color-ash-500: #9b9ba4;
+  --color-ash-400: #aeaeb6;
+  --color-ash-300: #c2c2ca;
 
   /* Off-whites ------------------------------------------------------------ */
   --color-bone-100: #f2f0ed;
   --color-bone-200: #ded9d3;
   --color-bone-300: #c9c6c1;
 
-  /* Acento ---------------------------------------------------------------- */
-  --color-blood-400: #e0243f;
+  /* Acento -----------------------------------------------------------------
+     `blood-500` é o vermelho de marca: preenchimento, borda e ícone. Como
+     TEXTO ele fica em 3.4:1 — reprovado para corpo pequeno —, então todo
+     texto vermelho usa `blood-400`, calibrado em 4.6:1 no pior fundo. */
+  --color-blood-300: #f4576c;
+  --color-blood-400: #ea3d55;
   --color-blood-500: #c8102e;
   --color-blood-600: #a00c24;
   --color-blood-700: #78091b;
 
-  /* Status (usados só no admin, dessaturados para não competir com o acento) */
+  /* Status (usados só no admin, dessaturados para não competir com o acento).
+     Cada um serve de texto sobre o próprio tom a 10% de opacidade — a
+     calibragem é contra ESSE fundo, não contra o `ink-900` puro. */
   --color-status-pending: #d99a2b;
   --color-status-confirmed: #3f9f6f;
-  --color-status-completed: #4a7fb5;
-  --color-status-cancelled: #7a5c8f;
-  --color-status-noshow: #8a5050;
+  --color-status-completed: #5d97cf;
+  --color-status-cancelled: #9b7bb5;
+  --color-status-noshow: #b57070;
 
   /* Tipografia ------------------------------------------------------------ */
   --font-display: var(--font-anton), "Arial Narrow", ui-sans-serif, sans-serif;

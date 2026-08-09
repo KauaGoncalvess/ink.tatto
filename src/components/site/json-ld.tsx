@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 import { siteConfig } from "@/config/site";
 
 /**
@@ -15,7 +17,9 @@ function serialize(data: unknown): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
-export function StudioJsonLd() {
+export async function StudioJsonLd() {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   const { contact, openingHours } = siteConfig;
 
   const dayMap: Record<string, string[]> = {
@@ -73,6 +77,7 @@ export function StudioJsonLd() {
 
   return (
     <script
+      nonce={nonce}
       type="application/ld+json"
       // Conteúdo estático e escapado; não há entrada de usuário aqui.
       dangerouslySetInnerHTML={{ __html: serialize(data) }}

@@ -9,8 +9,8 @@ import type { UserRole } from "@prisma/client";
  * Sessão do painel administrativo.
  *
  * JWT HS256 assinado com AUTH_SECRET, guardado num cookie httpOnly. O formato
- * foi escolhido para poder ser verificado no middleware (runtime edge), onde
- * não há acesso ao banco — o middleware faz o corte barato e cada Server
+ * foi escolhido para poder ser verificado no proxy (que roda antes do render), onde
+ * não há acesso ao banco — o proxy faz o corte barato e cada Server
  * Action revalida de novo contra o banco antes de qualquer escrita.
  */
 

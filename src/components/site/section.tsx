@@ -25,7 +25,7 @@ export function Eyebrow({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-3 text-blood-500 overline",
+        "inline-flex items-center gap-3 text-blood-400 overline",
         align === "center" && "justify-center",
         className,
       )}

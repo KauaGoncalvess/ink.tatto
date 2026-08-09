@@ -356,7 +356,9 @@ function MonthView({
               onClick={() => onSelectDay(dateISO)}
               className={cn(
                 "group flex min-h-24 flex-col items-stretch gap-1 border-b border-r border-hairline p-1.5 text-left transition-colors hover:bg-ink-850 sm:min-h-28",
-                outside && "opacity-40",
+                // Dias de outro mês recuam por fundo, não por opacidade: 40%
+                // de opacidade derrubava o número para 2.3:1 de contraste.
+                outside && "bg-ink-950/70",
                 blockedDays.has(dateISO) &&
                   "bg-[repeating-linear-gradient(45deg,rgba(53,53,61,.25),rgba(53,53,61,.25)_3px,transparent_3px,transparent_7px)]",
               )}
@@ -366,7 +368,9 @@ function MonthView({
                   "inline-grid size-6 shrink-0 place-items-center text-xs tabular-nums",
                   isToday
                     ? "bg-blood-500 font-bold text-bone-100"
-                    : "text-ash-400 group-hover:text-bone-200",
+                    : outside
+                      ? "text-ash-600"
+                      : "text-ash-400 group-hover:text-bone-200",
                 )}
               >
                 {Number(dateISO.slice(8))}
