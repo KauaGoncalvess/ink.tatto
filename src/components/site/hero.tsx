@@ -34,7 +34,7 @@ export function Hero() {
       />
 
       <div className="container-editorial relative">
-        <div className="grid items-center gap-10 pb-16 pt-28 md:pb-20 md:pt-32 lg:grid-cols-12 lg:gap-14 lg:pb-28 lg:pt-40">
+        <div className="grid items-center gap-8 pb-12 pt-24 md:gap-10 md:pb-20 md:pt-32 lg:grid-cols-12 lg:gap-14 lg:pb-28 lg:pt-40">
           {/* Fotografia */}
           <figure
             className={cn(
@@ -119,7 +119,7 @@ export function Hero() {
                     </span>
                     {/* tracking menor que o padrão: com 0.14em o rótulo de três
                         palavras estoura a coluna em telas estreitas. */}
-                    <span className="mt-2 block text-[0.625rem] uppercase leading-snug tracking-[0.1em] text-ash-500">
+                    <span className="mt-2 block label-xs leading-snug text-ash-500">
                       {stat.label}
                     </span>
                   </dd>

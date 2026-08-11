@@ -86,7 +86,7 @@ export function ImageUploadField({
         <button
           type="button"
           onClick={() => setShowManual((current) => !current)}
-          className="inline-flex items-center gap-1.5 text-[0.625rem] uppercase tracking-[0.14em] text-ash-500 transition-colors hover:text-bone-200"
+          className="inline-flex items-center gap-1.5 label-xs text-ash-500 transition-colors hover:text-bone-200"
         >
           <Link2 className="size-3" aria-hidden="true" />
           {showManual ? "Ocultar caminho" : "Informar caminho"}
@@ -179,7 +179,7 @@ export function ImageUploadField({
           <span>
             {uploading ? "Enviando…" : "Clique ou arraste uma imagem para cá"}
           </span>
-          <span className="text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+          <span className="label-xs text-ash-600">
             JPG, PNG ou WEBP · até 5 MB
           </span>
         </button>

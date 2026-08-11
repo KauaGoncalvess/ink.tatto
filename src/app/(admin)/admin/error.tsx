@@ -54,7 +54,7 @@ export default function AdminError({
         </div>
 
         {error.digest ? (
-          <p className="mt-8 text-[0.625rem] uppercase tracking-[0.16em] text-ash-700">
+          <p className="mt-8 label-xs text-ash-700">
             Código: {error.digest}
           </p>
         ) : null}

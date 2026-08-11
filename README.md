@@ -263,6 +263,50 @@ A primeira auditoria reprovou 31 dos 31 estados. Os achados e o que mudou:
 | `<h3>` logo abaixo do `<h1>` em `/artistas` | Nível do título do card virou propriedade |
 | Dias e linhas inativos apagados com `opacity` | Recuo por fundo, mantendo o texto legível |
 
+### Densidade e hierarquia
+
+Uma auditoria de UI seguinte apontou dez problemas de crítico a alto que não
+eram acabamento — saíam de três decisões estruturais. O que mudou:
+
+**Não havia escala de densidade.** O respiro editorial de landing valia
+também para o wizard e o painel, que são ferramentas. A home tinha **10.978px
+em 390px de largura — treze telas**; o agendamento, 4.070px, com o rodapé
+ocupando 27% disso. As prévias de catálogo (serviços, galeria, depoimentos)
+viraram carrossel com scroll-snap no celular, o card de artista ganhou uma
+variante horizontal para a home, o rodapé tem uma versão enxuta nas rotas de
+conversão e a escala de seção desceu um degrau no mobile. Resultado: **7.317px
+e 2.796px**, −33% e −31%.
+
+No painel, a célula do calendário tinha 96px de altura para exibir uma linha
+de 14px: o mês inteiro custava 700px de tela para vinte compromissos. Agora
+tem 64px, mostra a carga do dia no canto e distingue bloqueio de "outro mês"
+com cadeado em vez de duas hachuras idênticas.
+
+**O acento tinha perdido o significado.** `blood-*` queria dizer marca, ação,
+erro, sucesso, "hoje" e "ativo" ao mesmo tempo — na barra do calendário havia
+três vermelhos com três sentidos lado a lado. A regra agora está escrita em
+`globals.css`: *vermelho é ação e marca; erro anda com ícone; estado usa
+forma*. "Hoje" virou anel, o seletor de visão virou superfície, o número da
+reserva saiu do vermelho de erro para o off-white de maior contraste.
+
+**Estado não era representado.** Dos cinco passos do agendamento, só o de
+horário mostrava o que estava escolhido; serviço e artista eram botões sem
+`aria-pressed` nem marca visual, então voltar um passo não dizia nada. O
+resumo lateral aparecia desde o primeiro passo com quatro travessões — um
+terço do desktop para não informar nada — e, no celular, caía depois de oito
+cards, onde ninguém chega. Agora ele só existe quando há escolha, cresce junto
+com o progresso e sobe para o topo no mobile. A confirmação virou casca
+própria: antes exibia "Reserve seu horário" logo acima de "Agendamento
+solicitado", duas manchetes do mesmo peso dizendo coisas opostas.
+
+A tipografia ganhou piso. Havia 136 ocorrências abaixo de 14px — 8 delas em
+9px e uma em 8px —, quase sempre em caixa alta com tracking até 0.32em.
+`label-sm` (12px), `label-xs` (11px) e `overline` cobrem todos os casos, e
+nada desce abaixo de 11px.
+
+`npm run e2e` passou a medir a altura das duas rotas mais longas e falha se
+elas voltarem a crescer — densidade deixou de ser questão de opinião.
+
 ### Performance
 
 `npm run perf` mede com cache frio, em navegador real, e reporta o valor cru
@@ -270,9 +314,9 @@ A primeira auditoria reprovou 31 dos 31 estados. Os achados e o que mudou:
 
 | Rota | JS | JS comprimido |
 | --- | --- | --- |
-| `/` | 656 kB | 197 kB |
-| `/agendamento` | 953 kB | 267 kB |
-| `/admin` | 694 kB | 212 kB |
+| `/` | 663 kB | 199 kB |
+| `/agendamento` | 961 kB | 268 kB |
+| `/admin` | 701 kB | 213 kB |
 
 Foi essa medição que motivou trocar o Recharts por gráficos escritos à mão: a
 biblioteca custava **370 kB só na rota do dashboard** — mais que o site público

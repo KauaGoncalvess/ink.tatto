@@ -64,6 +64,22 @@ const STATUS_DOT: Record<AppointmentStatus, string> = {
   NO_SHOW: "bg-status-noshow",
 };
 
+/**
+ * Cor da régua lateral do compromisso na visão de mês.
+ *
+ * O status era comunicado só por um ponto de 6px — ou seja, só por cor, o que
+ * exclui quem não distingue essas cinco matizes e é ilegível para todo mundo
+ * nesse tamanho. A régua dá área suficiente para a cor funcionar, e o `title`
+ * ao lado entrega o nome do status por escrito.
+ */
+const STATUS_RULE: Record<AppointmentStatus, string> = {
+  PENDING: "border-l-status-pending",
+  CONFIRMED: "border-l-status-confirmed",
+  COMPLETED: "border-l-status-completed",
+  CANCELLED: "border-l-status-cancelled",
+  NO_SHOW: "border-l-status-noshow",
+};
+
 const BLOCK_LABELS: Record<BlockReason, string> = {
   DAY_OFF: "Folga",
   VACATION: "Férias",
@@ -212,9 +228,9 @@ export function AdminCalendar({
                 aria-pressed={view === option}
                 onClick={() => navigate({ visao: option === "mes" ? null : option })}
                 className={cn(
-                  "border px-3 py-2 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] transition-colors",
+                  "border px-3 py-2 label-xs transition-colors",
                   view === option
-                    ? "border-blood-500 bg-blood-500 text-bone-100"
+                    ? "border-hairline-strong bg-ink-700 text-bone-100"
                     : "border-hairline text-ash-400 hover:bg-ink-800 hover:text-bone-200",
                   option !== "mes" && "-ml-px",
                 )}
@@ -254,9 +270,14 @@ export function AdminCalendar({
 
       {/* Legenda */}
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.6875rem] text-ash-500">
+        {/* Amostra em régua, do mesmo formato que aparece na célula — seis
+            quadrados de 6px não se distinguem entre si. */}
         {(Object.keys(STATUS_LABELS) as AppointmentStatus[]).map((status) => (
           <span key={status} className="inline-flex items-center gap-1.5">
-            <span aria-hidden="true" className={cn("size-2", STATUS_DOT[status])} />
+            <span
+              aria-hidden="true"
+              className={cn("h-3 w-0.5", STATUS_DOT[status])}
+            />
             {STATUS_LABELS[status]}
           </span>
         ))}
@@ -336,7 +357,7 @@ function MonthView({
         {WEEKDAY_SHORT.map((day) => (
           <div
             key={day}
-            className="px-2 py-2.5 text-center text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-ash-600"
+            className="px-2 py-2.5 text-center label-xs text-ash-600"
           >
             {day}
           </div>
@@ -348,6 +369,7 @@ function MonthView({
           const dayAppointments = byDay.get(dateISO) ?? [];
           const outside = !dateISO.startsWith(currentMonth);
           const isToday = dateISO === today;
+          const blocked = blockedDays.has(dateISO);
 
           return (
             <button
@@ -355,44 +377,67 @@ function MonthView({
               type="button"
               onClick={() => onSelectDay(dateISO)}
               className={cn(
-                "group flex min-h-24 flex-col items-stretch gap-1 border-b border-r border-hairline p-1.5 text-left transition-colors hover:bg-ink-850 sm:min-h-28",
+                // A célula tinha 96px de altura para exibir uma linha de 14px.
+                // Mostrar o mês inteiro custava 700px de tela para vinte
+                // compromissos — a pior relação informação/pixel do produto.
+                "group flex min-h-16 flex-col items-stretch gap-1 border-b border-r border-hairline p-1.5 text-left transition-colors hover:bg-ink-850 sm:min-h-20",
                 // Dias de outro mês recuam por fundo, não por opacidade: 40%
                 // de opacidade derrubava o número para 2.3:1 de contraste.
                 outside && "bg-ink-950/70",
-                blockedDays.has(dateISO) &&
+                // A hachura vale só para bloqueio, e só dentro do mês. Antes
+                // ela também caía nos dias vizinhos, deixando "bloqueado" e
+                // "outro mês" com exatamente a mesma aparência.
+                blocked &&
+                  !outside &&
                   "bg-[repeating-linear-gradient(45deg,rgba(53,53,61,.25),rgba(53,53,61,.25)_3px,transparent_3px,transparent_7px)]",
               )}
             >
-              <span
-                className={cn(
-                  "inline-grid size-6 shrink-0 place-items-center text-xs tabular-nums",
-                  isToday
-                    ? "bg-blood-500 font-bold text-bone-100"
-                    : outside
-                      ? "text-ash-600"
-                      : "text-ash-400 group-hover:text-bone-200",
-                )}
-              >
-                {Number(dateISO.slice(8))}
+              <span className="flex shrink-0 items-center justify-between gap-1">
+                <span
+                  className={cn(
+                    "inline-grid size-6 place-items-center text-xs tabular-nums",
+                    isToday
+                      ? "font-bold text-bone-100 ring-1 ring-bone-100"
+                      : outside
+                        ? "text-ash-600"
+                        : "text-ash-400 group-hover:text-bone-200",
+                  )}
+                >
+                  {Number(dateISO.slice(8))}
+                </span>
+
+                <span className="flex items-center gap-1">
+                  {blocked && !outside ? (
+                    <Lock className="size-3 text-ash-500" aria-label="Dia com bloqueio" />
+                  ) : null}
+
+                  {/* Carga do dia: sem isto, um dia com uma sessão e outro com
+                      seis pareciam iguais até você contar as linhas. */}
+                  {dayAppointments.length > 0 ? (
+                    <span className="label-xs text-ash-500 tabular-nums">
+                      {dayAppointments.length}
+                    </span>
+                  ) : null}
+                </span>
               </span>
 
-              <span className="flex flex-col gap-0.5 overflow-hidden">
+              <span className="flex flex-col gap-px overflow-hidden">
                 {dayAppointments.slice(0, 3).map((appointment) => (
                   <span
                     key={appointment.id}
-                    className="flex items-center gap-1 truncate text-[0.625rem] text-ash-300"
+                    title={`${appointment.startTime} · ${appointment.clientName} · ${STATUS_LABELS[appointment.status]}`}
+                    className={cn(
+                      "flex items-center gap-1 truncate border-l-2 pl-1.5 text-[0.6875rem] text-ash-300",
+                      STATUS_RULE[appointment.status],
+                    )}
                   >
-                    <span
-                      aria-hidden="true"
-                      className={cn("size-1.5 shrink-0", STATUS_DOT[appointment.status])}
-                    />
                     <span className="tabular-nums">{appointment.startTime}</span>
                     <span className="truncate">{appointment.clientName}</span>
                   </span>
                 ))}
 
                 {dayAppointments.length > 3 ? (
-                  <span className="text-[0.625rem] text-ash-600">
+                  <span className="pl-1.5 text-[0.6875rem] text-ash-500">
                     +{dayAppointments.length - 3} mais
                   </span>
                 ) : null}
@@ -476,13 +521,15 @@ function TimeGridView({
                   isToday && "bg-ink-850",
                 )}
               >
-                <span className="block text-[0.625rem] uppercase tracking-[0.1em] text-ash-600">
+                <span className="block label-xs text-ash-600">
                   {WEEKDAY_SHORT[date.getUTCDay()]}
                 </span>
                 <span
                   className={cn(
                     "mt-1 inline-grid size-6 place-items-center text-xs tabular-nums",
-                    isToday ? "bg-blood-500 font-bold text-bone-100" : "text-bone-200",
+                    isToday
+                      ? "font-bold text-bone-100 ring-1 ring-bone-100"
+                      : "text-bone-200",
                   )}
                 >
                   {Number(dateISO.slice(8))}
@@ -505,7 +552,7 @@ function TimeGridView({
                 className="relative border-b border-hairline pr-2 text-right"
                 style={{ height: ROW_HEIGHT }}
               >
-                <span className="absolute -top-2 right-2 text-[0.625rem] tabular-nums text-ash-600">
+                <span className="absolute -top-2 right-2 text-[0.6875rem] tabular-nums text-ash-600">
                   {String(hour).padStart(2, "0")}:00
                 </span>
               </div>
@@ -557,7 +604,7 @@ function TimeGridView({
                       className="pointer-events-none absolute inset-x-0.5 border border-ash-700/40 bg-[repeating-linear-gradient(45deg,rgba(53,53,61,.4),rgba(53,53,61,.4)_3px,transparent_3px,transparent_7px)] px-1.5 py-1"
                       style={{ top: `${top}%`, height: `${Math.max(2, bottom - top)}%` }}
                     >
-                      <span className="text-[0.5625rem] uppercase tracking-wider text-ash-400">
+                      <span className="label-xs text-ash-400">
                         {BLOCK_LABELS[block.reason]}
                         {block.artistName ? ` · ${block.artistName}` : " · estúdio"}
                       </span>
@@ -586,10 +633,10 @@ function TimeGridView({
                         borderLeftColor: `var(--color-status-${appointment.status.toLowerCase().replace("_", "")})`,
                       }}
                     >
-                      <span className="block truncate text-[0.625rem] font-semibold text-bone-100">
+                      <span className="block truncate text-[0.6875rem] font-semibold text-bone-100">
                         {appointment.startTime} {appointment.clientName}
                       </span>
-                      <span className="block truncate text-[0.5625rem] text-ash-500">
+                      <span className="block truncate text-[0.6875rem] text-ash-500">
                         {appointment.serviceName} · {appointment.artistName}
                       </span>
                     </Link>

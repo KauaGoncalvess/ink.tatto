@@ -18,6 +18,31 @@ export type ArtistCardData = {
   instagram: string | null;
 };
 
+type Props = {
+  artist: ArtistCardData;
+  className?: string;
+  /**
+   * Nível do título do card. Em `/artistas` os cards vêm logo abaixo do <h1>
+   * da página, sem <h2> no meio — fixar h3 aqui criaria um degrau vago na
+   * hierarquia, que é justamente o que o leitor de tela usa para navegar.
+   */
+  headingAs?: "h2" | "h3";
+  /**
+   * `full` é o card de retrato da página de artistas. `compact` é a versão
+   * horizontal usada na home: mesma informação, 180px de altura no lugar de
+   * 700. Três cards completos empilhados custavam 2.366px de rolagem no
+   * celular para uma seção que é só uma prévia — quem quer ver todo mundo
+   * clica em "conhecer todos".
+   */
+  variant?: "full" | "compact";
+  /**
+   * Ênfase do botão. Em `/artistas` ele é a razão de ser da página e vem
+   * `primary`; na home fica `outline` para a seção não virar parede de
+   * vermelho.
+   */
+  emphasis?: "primary" | "outline";
+};
+
 /**
  * Card de artista.
  *
@@ -29,16 +54,82 @@ export function ArtistCard({
   artist,
   className,
   headingAs: Heading = "h3",
-}: {
-  artist: ArtistCardData;
-  className?: string;
-  /**
-   * Nível do título do card. Em `/artistas` os cards vêm logo abaixo do <h1>
-   * da página, sem <h2> no meio — fixar h3 aqui criaria um degrau vago na
-   * hierarquia, que é justamente o que o leitor de tela usa para navegar.
-   */
-  headingAs?: "h2" | "h3";
-}) {
+  variant = "full",
+  emphasis = "outline",
+}: Props) {
+  const firstName = artist.handle ?? artist.name.split(" ")[0];
+
+  const specialties = artist.specialties.slice(0, 3);
+
+  /* As especialidades ficavam sobre a foto, e sobre uma foto escura elas
+     simplesmente não eram legíveis. Aqui em cima do nome elas cumprem o papel
+     que sempre tiveram: dizer, antes de tudo, se este artista faz o que você
+     quer. */
+  const specialtyList =
+    specialties.length > 0 ? (
+      <ul className="flex flex-wrap gap-x-3 gap-y-1">
+        {specialties.map((specialty) => (
+          <li key={specialty} className="label-xs text-ash-500">
+            {specialty}
+          </li>
+        ))}
+      </ul>
+    ) : null;
+
+  const cta = (
+    <Button asChild variant={emphasis} size="sm" className="w-full">
+      <Link href={`/agendamento?artista=${artist.id}`}>
+        Agendar com {firstName}
+        <CalendarDays aria-hidden="true" />
+      </Link>
+    </Button>
+  );
+
+  const name = (
+    <Heading
+      className={cn(
+        "font-display uppercase tracking-tight text-bone-100",
+        variant === "compact" ? "text-xl" : "text-2xl",
+      )}
+    >
+      <Link
+        href={`/artistas/${artist.slug}`}
+        className="transition-colors hover:text-blood-400"
+      >
+        {artist.name}
+      </Link>
+    </Heading>
+  );
+
+  if (variant === "compact") {
+    return (
+      <article
+        className={cn("group flex gap-4 border border-hairline p-4", className)}
+      >
+        <div className="relative size-24 shrink-0 overflow-hidden bg-ink-900">
+          <Image
+            src={artist.avatarUrl ?? FALLBACK_IMAGE}
+            alt={`Retrato de ${artist.name}, tatuador do estúdio`}
+            fill
+            sizes="96px"
+            placeholder="blur"
+            blurDataURL={BLUR_DATA_URL}
+            className="object-cover"
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          {specialtyList}
+          {name}
+          <p className="line-clamp-2 text-sm leading-relaxed text-ash-400">
+            {artist.shortBio}
+          </p>
+          <div className="mt-1">{cta}</div>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className={cn("group flex flex-col", className)}>
       <div className="relative aspect-4/5 overflow-hidden bg-ink-900">
@@ -54,18 +145,6 @@ export function ArtistCard({
 
         <div aria-hidden="true" className="absolute inset-0 photo-scrim" />
 
-        {/* Especialidades sobre a foto */}
-        <ul className="absolute inset-x-4 bottom-4 flex flex-wrap gap-1.5">
-          {artist.specialties.slice(0, 3).map((specialty) => (
-            <li
-              key={specialty}
-              className="border border-hairline-strong bg-ink-950/70 px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-bone-200 backdrop-blur-sm"
-            >
-              {specialty}
-            </li>
-          ))}
-        </ul>
-
         {artist.instagram ? (
           <a
             href={artist.instagram}
@@ -80,14 +159,9 @@ export function ArtistCard({
       </div>
 
       <div className="flex flex-1 flex-col pt-5">
-        <Heading className="font-display text-2xl uppercase tracking-tight text-bone-100">
-          <Link
-            href={`/artistas/${artist.slug}`}
-            className="transition-colors hover:text-blood-400"
-          >
-            {artist.name}
-          </Link>
-        </Heading>
+        {specialtyList ? <div className="mb-3">{specialtyList}</div> : null}
+
+        {name}
 
         {artist.handle ? (
           <span className="mt-1 overline text-blood-400">{artist.handle}</span>
@@ -97,17 +171,7 @@ export function ArtistCard({
           {artist.shortBio}
         </p>
 
-        <Button
-          asChild
-          variant="outline"
-          size="sm"
-          className="mt-6 w-full"
-        >
-          <Link href={`/agendamento?artista=${artist.id}`}>
-            Agendar com {artist.handle ?? artist.name.split(" ")[0]}
-            <CalendarDays aria-hidden="true" />
-          </Link>
-        </Button>
+        <div className="mt-6">{cta}</div>
       </div>
     </article>
   );

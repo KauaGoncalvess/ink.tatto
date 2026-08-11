@@ -135,14 +135,14 @@ export default async function NotificationsPage() {
                       ) : null}
 
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+                        <span className="label-xs text-ash-600">
                           {formatInStudio(item.createdAt, "dd/MM 'às' HH:mm")}
                         </span>
                         {item.sentAt ? <Tag>entregue</Tag> : null}
                         {item.appointment ? (
                           <Link
                             href={`/admin/agendamentos/${item.appointment.id}`}
-                            className="text-[0.625rem] uppercase tracking-[0.14em] text-blood-400 hover:text-blood-300"
+                            className="label-xs text-blood-400 hover:text-blood-300"
                           >
                             {item.appointment.code}
                           </Link>

@@ -11,6 +11,7 @@ import { TestimonialCard } from "@/components/site/testimonial-card";
 import { Reveal } from "@/components/site/reveal";
 import { Section, SectionHeader } from "@/components/site/section";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { QuickBooking } from "@/features/booking/components/quick-booking";
 import {
   getActiveArtists,
@@ -95,15 +96,26 @@ export default async function HomePage() {
             align="center"
           />
 
-          <ul className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ul
+            className={cn(
+              "mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 sm:mt-14",
+              "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              "sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-4",
+            )}
+          >
             {services.map((service, index) => (
-              <Reveal as="li" key={service.id} delay={index * 90} className="min-w-0">
+              <Reveal
+                as="li"
+                key={service.id}
+                delay={index * 90}
+                className="w-[78vw] min-w-0 shrink-0 snap-start sm:w-auto"
+              >
                 <ServiceCard service={service} className="h-full" />
               </Reveal>
             ))}
           </ul>
 
-          <Reveal className="mt-12 flex justify-center">
+          <Reveal className="mt-8 flex justify-center md:mt-12">
             <Button asChild variant="outline" size="lg">
               <Link href="/servicos">
                 Ver todos os serviços
@@ -128,7 +140,7 @@ export default async function HomePage() {
             <Gallery items={gallery} layout="carousel" />
           </Reveal>
 
-          <Reveal className="mt-12 flex justify-center">
+          <Reveal className="mt-8 flex justify-center md:mt-12">
             <Button asChild variant="outline" size="lg">
               <Link href="/galeria">
                 Ver galeria completa
@@ -156,10 +168,18 @@ export default async function HomePage() {
             }
           />
 
-          <ul className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-10">
+          <ul className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3 lg:gap-10">
             {artists.map((artist, index) => (
               <Reveal as="li" key={artist.id} delay={index * 110} className="min-w-0">
-                <ArtistCard artist={artist} className="h-full" />
+                {/* Duas renderizações do mesmo card em vez de um layout que
+                    se contorce: no celular a versão horizontal, da tablet
+                    para cima o retrato. */}
+                <ArtistCard artist={artist} variant="compact" className="sm:hidden" />
+                <ArtistCard
+                  artist={artist}
+                  className="hidden h-full sm:flex"
+                  headingAs="h3"
+                />
               </Reveal>
             ))}
           </ul>
@@ -175,9 +195,27 @@ export default async function HomePage() {
             align="center"
           />
 
-          <ul className="mt-14 grid gap-4 md:grid-cols-3">
+          {/* Diferente dos outros carrosséis, um depoimento não tem link nem
+              botão dentro. Sem conteúdo focável, a faixa rolava só com o dedo
+              ou com o mouse — quem navega por teclado não alcançava do segundo
+              depoimento em diante. `tabIndex` devolve a rolagem por setas. */}
+          <ul
+            tabIndex={0}
+            aria-label="Depoimentos de clientes"
+            className={cn(
+              "mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 sm:mt-14",
+              "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blood-500",
+              "md:grid md:grid-cols-3 md:overflow-visible md:pb-0",
+            )}
+          >
             {testimonials.map((testimonial, index) => (
-              <Reveal as="li" key={testimonial.id} delay={index * 110} className="min-w-0">
+              <Reveal
+                as="li"
+                key={testimonial.id}
+                delay={index * 110}
+                className="w-[80vw] min-w-0 shrink-0 snap-start md:w-auto"
+              >
                 <TestimonialCard testimonial={testimonial} />
               </Reveal>
             ))}
@@ -260,7 +298,7 @@ function AboutSection() {
           {/* Composição de duas fotografias sobrepostas. */}
           <Reveal variant="fade" className="lg:col-span-6">
             <div className="relative">
-              <div className="relative aspect-4/5 w-full sm:aspect-3/2 lg:aspect-4/5">
+              <div className="relative aspect-4/3 w-full sm:aspect-3/2 lg:aspect-4/5">
                 <Image
                   src={studioImages.interior.src}
                   alt={studioImages.interior.alt}

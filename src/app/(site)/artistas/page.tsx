@@ -37,7 +37,12 @@ export default async function ArtistsPage() {
             <ul className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-10">
               {artists.map((artist, index) => (
                 <Reveal as="li" key={artist.id} delay={(index % 3) * 110}>
-                  <ArtistCard artist={artist} className="h-full" headingAs="h2" />
+                  <ArtistCard
+                    artist={artist}
+                    className="h-full"
+                    headingAs="h2"
+                    emphasis="primary"
+                  />
                 </Reveal>
               ))}
             </ul>

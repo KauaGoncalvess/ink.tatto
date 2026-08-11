@@ -51,10 +51,18 @@ function buildWhere(filters: AppointmentFilters, timezone: string): Prisma.Appoi
 
   const search = filters.search?.trim();
   if (search) {
+    // A busca por telefone só entra com dígitos suficientes para significar
+    // alguma coisa. Sem esse corte, procurar pelo código "IH-C9WGGR" virava
+    // `phone contains "9"` — que casa com praticamente todo telefone do banco
+    // e devolvia a lista inteira como se nada tivesse sido filtrado.
+    const digits = search.replace(/\D/g, "");
+
     where.OR = [
       { code: { contains: search, mode: "insensitive" } },
       { client: { name: { contains: search, mode: "insensitive" } } },
-      { client: { phone: { contains: search.replace(/\D/g, "") } } },
+      ...(digits.length >= 3
+        ? [{ client: { phone: { contains: digits } } }]
+        : []),
       { client: { email: { contains: search, mode: "insensitive" } } },
     ];
   }

@@ -85,7 +85,7 @@ export default async function AppointmentDetailPage({ params }: Props) {
 
             {appointment.status === "CANCELLED" && appointment.cancelledReason ? (
               <div className="border-t border-hairline px-5 py-4">
-                <span className="text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+                <span className="label-xs text-ash-600">
                   Motivo do cancelamento
                 </span>
                 <p className="mt-1.5 text-sm text-ash-300">
@@ -182,7 +182,7 @@ export default async function AppointmentDetailPage({ params }: Props) {
 
               <dl className="mt-5 space-y-3 text-sm">
                 <div>
-                  <dt className="text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+                  <dt className="label-xs text-ash-600">
                     Telefone
                   </dt>
                   <dd className="mt-1 text-bone-200">
@@ -191,7 +191,7 @@ export default async function AppointmentDetailPage({ params }: Props) {
                 </div>
                 {appointment.client.email ? (
                   <div>
-                    <dt className="text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+                    <dt className="label-xs text-ash-600">
                       E-mail
                     </dt>
                     <dd className="mt-1 break-all text-bone-200">
@@ -201,7 +201,7 @@ export default async function AppointmentDetailPage({ params }: Props) {
                 ) : null}
                 {appointment.client.notes ? (
                   <div>
-                    <dt className="text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+                    <dt className="label-xs text-ash-600">
                       Observações do cadastro
                     </dt>
                     <dd className="mt-1 text-ash-300">{appointment.client.notes}</dd>
@@ -249,7 +249,7 @@ function DetailRow({
 }) {
   return (
     <div className="px-5 py-4">
-      <dt className="text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+      <dt className="label-xs text-ash-600">
         {label}
       </dt>
       <dd

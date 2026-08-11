@@ -85,7 +85,7 @@ export function SectionHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-6",
+        "flex flex-col gap-5 md:gap-6",
         action && "lg:flex-row lg:items-end lg:justify-between lg:gap-12",
         className,
       )}
@@ -104,7 +104,7 @@ export function SectionHeader({
         {description ? (
           <p
             className={cn(
-              "mt-6 max-w-xl text-base leading-relaxed text-ash-300 text-pretty",
+              "mt-4 max-w-xl text-base leading-relaxed text-ash-300 text-pretty md:mt-6",
               align === "center" && "mx-auto",
             )}
           >
@@ -130,10 +130,14 @@ export function Section({
   spacing = "md",
   ...props
 }: React.ComponentProps<"section"> & { spacing?: "sm" | "md" | "lg" }) {
+  // O respiro do desktop é o que dá o ar editorial e fica como está. No
+  // celular ele era o mesmo em proporção — e, somado a oito seções, empurrava
+  // a home para 10.978px, treze telas de rolagem. O degrau mobile desce um
+  // nível; do `md` para cima nada muda.
   const spacings = {
-    sm: "py-16 md:py-20",
-    md: "py-20 md:py-28 lg:py-32",
-    lg: "py-24 md:py-32 lg:py-40",
+    sm: "py-12 md:py-20",
+    md: "py-14 md:py-28 lg:py-32",
+    lg: "py-16 md:py-32 lg:py-40",
   } as const;
 
   return (

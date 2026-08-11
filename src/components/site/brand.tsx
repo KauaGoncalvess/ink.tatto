@@ -58,10 +58,17 @@ export type LogoProps = {
   size?: "sm" | "md" | "lg";
 };
 
+/**
+ * A tagline do logotipo tinha 8px (sm) e 9px com `tracking-[0.32em]` — o menor
+ * texto do projeto inteiro e, na prática, ilegível. Aqui ela sobe para 10 e
+ * 11px e o tracking cai na mesma proporção: as treze letras de "TATTOO STUDIO"
+ * ocupam praticamente a mesma largura de antes, então o lockup não muda de
+ * forma — só passa a ser legível.
+ */
 const sizes = {
-  sm: { mark: "size-7", name: "text-base", tagline: "text-[0.5rem]" },
-  md: { mark: "size-9", name: "text-xl", tagline: "text-[0.5625rem]" },
-  lg: { mark: "size-12", name: "text-3xl", tagline: "text-[0.6875rem]" },
+  sm: { mark: "size-7", name: "text-base", tagline: "text-[0.625rem] tracking-[0.18em]" },
+  md: { mark: "size-9", name: "text-xl", tagline: "text-[0.6875rem] tracking-[0.2em]" },
+  lg: { mark: "size-12", name: "text-3xl", tagline: "text-[0.6875rem] tracking-[0.28em]" },
 } as const;
 
 export function Logo({
@@ -87,7 +94,7 @@ export function Logo({
           </span>
           <span
             className={cn(
-              "font-semibold uppercase tracking-[0.32em] text-ash-500 mt-1",
+              "font-semibold uppercase text-ash-500 mt-1",
               scale.tagline,
             )}
           >

@@ -19,7 +19,14 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldHint, Input, Label, Textarea } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldHint,
+  Input,
+  Label,
+  Textarea,
+} from "@/components/ui/field";
 import { ServiceIcon } from "@/components/site/service-icon";
 import { BookingCalendar } from "@/features/booking/components/booking-calendar";
 import { createAppointment } from "@/features/booking/actions";
@@ -72,6 +79,15 @@ type Props = {
   artists: WizardArtist[];
   minLeadTimeHours: number;
   maxAdvanceDays: number;
+  /**
+   * Cabeçalho da página, renderizado no servidor e entregue pronto.
+   *
+   * Vem por composição porque quem decide se ele aparece é o wizard: na tela
+   * de confirmação, "Reserve seu horário" convivia com "Agendamento
+   * solicitado" — duas manchetes do mesmo peso dizendo coisas opostas. O
+   * sucesso é uma casca própria, não mais um passo do formulário.
+   */
+  header?: React.ReactNode;
 };
 
 const STEPS = [
@@ -112,6 +128,7 @@ export function BookingWizard({
   artists,
   minLeadTimeHours,
   maxAdvanceDays,
+  header,
 }: Props) {
   const router = useRouter();
   const params = useSearchParams();
@@ -123,10 +140,14 @@ export function BookingWizard({
   const stepParam = params.get("passo") as StepKey | null;
 
   const [details, setDetails] = React.useState<ClientDetails>(EMPTY_DETAILS);
-  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>(
+    {},
+  );
   const [formError, setFormError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
-  const [confirmation, setConfirmation] = React.useState<Confirmation | null>(null);
+  const [confirmation, setConfirmation] = React.useState<Confirmation | null>(
+    null,
+  );
 
   const service = services.find((entry) => entry.id === serviceId) ?? null;
   const artist = artists.find((entry) => entry.id === artistId) ?? null;
@@ -180,14 +201,16 @@ export function BookingWizard({
 
   if (confirmation && service && artist) {
     return (
-      <ConfirmationPanel
-        confirmation={confirmation}
-        onRestart={() => {
-          setConfirmation(null);
-          setDetails(EMPTY_DETAILS);
-          router.push("/agendamento");
-        }}
-      />
+      <div className="container-editorial pb-24 md:pb-32">
+        <ConfirmationPanel
+          confirmation={confirmation}
+          onRestart={() => {
+            setConfirmation(null);
+            setDetails(EMPTY_DETAILS);
+            router.push("/agendamento");
+          }}
+        />
+      </div>
     );
   }
 
@@ -255,138 +278,179 @@ export function BookingWizard({
     }
   }
 
+  // O resumo só existe quando há o que resumir. Antes ele aparecia desde o
+  // primeiro passo com quatro travessões, ocupando um terço do desktop para
+  // não dizer nada — e, no celular, caindo depois de oito cards de serviço,
+  // onde ninguém chega.
+  const hasSelection = Boolean(service ?? artist ?? dateISO ?? time);
+
   return (
-    <div className="grid gap-10 lg:grid-cols-12 lg:gap-12">
-      {/* Coluna principal */}
-      <div className="lg:col-span-8">
-        <StepIndicator current={stepIndex} />
+    <>
+      {header}
 
-        <div className="mt-10">
-          {step === "servico" ? (
-            <StepService
-              services={services}
-              onSelect={(id) => setParams({ servico: id, artista: null, horario: null, passo: "artista" })}
-            />
-          ) : null}
+      <div className="container-editorial grid gap-8 pb-24 md:pb-32 lg:grid-cols-12 lg:gap-12">
+        {/* Coluna principal */}
+        <div className="lg:col-span-8">
+          <StepIndicator current={stepIndex} />
 
-          {step === "artista" ? (
-            <StepArtist
-              artists={eligibleArtists}
-              onSelect={(id) => setParams({ artista: id, horario: null, passo: "data" })}
-              onBack={() => setParams({ servico: null, passo: "servico" })}
-            />
-          ) : null}
-
-          {step === "data" && service && artist ? (
-            <StepDateTime
-              service={service}
-              artistId={artist.id}
-              dateISO={dateISO}
-              time={time}
-              minDateISO={minDateISO}
-              maxDateISO={maxDateISO}
-              onDateChange={(next) => setParams({ data: next, horario: null })}
-              onTimeChange={(next) => setParams({ horario: next, passo: "dados" })}
-              onBack={() => setParams({ artista: null, passo: "artista" })}
-            />
-          ) : null}
-
-          {step === "dados" ? (
-            <StepDetails
-              details={details}
-              errors={fieldErrors}
-              onChange={(patch) => setDetails((current) => ({ ...current, ...patch }))}
-              onBack={() => setParams({ horario: null, passo: "data" })}
-              onNext={() => {
-                const parsed = clientDetailsSchema.safeParse(details);
-                if (!parsed.success) {
-                  const errors: Record<string, string> = {};
-                  for (const issue of parsed.error.issues) {
-                    errors[issue.path.join(".")] ??= issue.message;
-                  }
-                  setFieldErrors(errors);
-                  return;
+          <div className="mt-10">
+            {step === "servico" ? (
+              <StepService
+                services={services}
+                selectedId={serviceId}
+                onSelect={(id) =>
+                  setParams({
+                    servico: id,
+                    artista: null,
+                    horario: null,
+                    passo: "artista",
+                  })
                 }
-                setFieldErrors({});
-                setParams({ passo: "resumo" });
-              }}
-            />
-          ) : null}
+              />
+            ) : null}
 
-          {step === "resumo" && service && artist ? (
-            <StepSummary
-              service={service}
-              artist={artist}
-              dateISO={dateISO}
-              time={time}
-              details={details}
-              error={formError}
-              submitting={submitting}
-              onBack={() => setParams({ passo: "dados" })}
-              onConfirm={handleSubmit}
-            />
-          ) : null}
+            {step === "artista" ? (
+              <StepArtist
+                artists={eligibleArtists}
+                selectedId={artistId}
+                onSelect={(id) =>
+                  setParams({ artista: id, horario: null, passo: "data" })
+                }
+                onBack={() => setParams({ servico: null, passo: "servico" })}
+              />
+            ) : null}
+
+            {step === "data" && service && artist ? (
+              <StepDateTime
+                service={service}
+                artistId={artist.id}
+                dateISO={dateISO}
+                time={time}
+                minDateISO={minDateISO}
+                maxDateISO={maxDateISO}
+                onDateChange={(next) =>
+                  setParams({ data: next, horario: null })
+                }
+                onTimeChange={(next) =>
+                  setParams({ horario: next, passo: "dados" })
+                }
+                onBack={() => setParams({ artista: null, passo: "artista" })}
+              />
+            ) : null}
+
+            {step === "dados" ? (
+              <StepDetails
+                details={details}
+                errors={fieldErrors}
+                onChange={(patch) =>
+                  setDetails((current) => ({ ...current, ...patch }))
+                }
+                onBack={() => setParams({ horario: null, passo: "data" })}
+                onNext={() => {
+                  const parsed = clientDetailsSchema.safeParse(details);
+                  if (!parsed.success) {
+                    const errors: Record<string, string> = {};
+                    for (const issue of parsed.error.issues) {
+                      errors[issue.path.join(".")] ??= issue.message;
+                    }
+                    setFieldErrors(errors);
+                    return;
+                  }
+                  setFieldErrors({});
+                  setParams({ passo: "resumo" });
+                }}
+              />
+            ) : null}
+
+            {step === "resumo" && service && artist ? (
+              <StepSummary
+                service={service}
+                artist={artist}
+                dateISO={dateISO}
+                time={time}
+                details={details}
+                error={formError}
+                submitting={submitting}
+                onBack={() => setParams({ passo: "dados" })}
+                onConfirm={handleSubmit}
+              />
+            ) : null}
+          </div>
         </div>
+
+        {/* Resumo — só quando já há escolha, e acima do conteúdo no celular */}
+        <aside
+          className={cn(
+            "order-first lg:order-none lg:col-span-4",
+            !hasSelection && "hidden",
+          )}
+        >
+          <div className="surface p-5 sm:p-6 lg:sticky lg:top-28">
+            <h2 className="overline text-ash-400">Seu agendamento</h2>
+
+            {/* Cada linha entra quando é preenchida: o resumo cresce junto com o
+              progresso, que é o que ele deveria comunicar desde o início. */}
+            <dl className="mt-5 space-y-4 text-sm sm:space-y-5">
+              {service ? (
+                <SummaryRow
+                  icon={<ServiceIcon name={service.icon} className="size-4" />}
+                  label="Serviço"
+                  value={service.name}
+                />
+              ) : null}
+              {artist ? (
+                <SummaryRow
+                  icon={<User className="size-4" aria-hidden="true" />}
+                  label="Artista"
+                  value={artist.name}
+                />
+              ) : null}
+              {dateISO ? (
+                <SummaryRow
+                  icon={<CalendarDays className="size-4" aria-hidden="true" />}
+                  label="Data"
+                  value={formatLongDate(new Date(`${dateISO}T12:00:00Z`))}
+                  capitalize
+                />
+              ) : null}
+              {time ? (
+                <SummaryRow
+                  icon={<Clock className="size-4" aria-hidden="true" />}
+                  label="Horário"
+                  value={time}
+                />
+              ) : null}
+            </dl>
+
+            {/* Duração e valor ficam de fora no celular, onde o resumo virou uma
+              faixa acima do passo atual e precisa ser curto. Os dois números
+              reaparecem inteiros no passo 5, antes de confirmar. */}
+            {service ? (
+              <div className="mt-6 hidden space-y-2 border-t border-hairline pt-5 text-sm lg:block">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-ash-500">Duração</span>
+                  <span className="text-bone-200">
+                    {formatDuration(service.durationMin)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-ash-500">Valor inicial</span>
+                  <span className="font-semibold text-bone-100">
+                    {service.priceFrom > 0
+                      ? formatCurrency(service.priceFrom)
+                      : "Sem custo"}
+                  </span>
+                </div>
+                <p className="pt-2 text-xs leading-relaxed text-ash-600">
+                  O valor final é confirmado pelo artista após avaliar tamanho,
+                  local e complexidade do projeto.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </aside>
       </div>
-
-      {/* Resumo lateral, sempre visível */}
-      <aside className="lg:col-span-4">
-        <div className="surface sticky top-28 p-6">
-          <h2 className="overline text-ash-400">Seu agendamento</h2>
-
-          <dl className="mt-6 space-y-5 text-sm">
-            <SummaryRow
-              icon={<ServiceIcon name={service?.icon ?? "Sparkles"} className="size-4" />}
-              label="Serviço"
-              value={service?.name}
-            />
-            <SummaryRow
-              icon={<User className="size-4" aria-hidden="true" />}
-              label="Artista"
-              value={artist?.name}
-            />
-            <SummaryRow
-              icon={<CalendarDays className="size-4" aria-hidden="true" />}
-              label="Data"
-              value={
-                dateISO
-                  ? formatLongDate(new Date(`${dateISO}T12:00:00Z`))
-                  : undefined
-              }
-              capitalize
-            />
-            <SummaryRow
-              icon={<Clock className="size-4" aria-hidden="true" />}
-              label="Horário"
-              value={time || undefined}
-            />
-          </dl>
-
-          {service ? (
-            <div className="mt-6 space-y-2 border-t border-hairline pt-5 text-sm">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-ash-500">Duração</span>
-                <span className="text-bone-200">
-                  {formatDuration(service.durationMin)}
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-ash-500">Valor inicial</span>
-                <span className="font-semibold text-bone-100">
-                  {service.priceFrom > 0
-                    ? formatCurrency(service.priceFrom)
-                    : "Sem custo"}
-                </span>
-              </div>
-              <p className="pt-2 text-xs leading-relaxed text-ash-600">
-                O valor final é confirmado pelo artista após avaliar tamanho,
-                local e complexidade do projeto.
-              </p>
-            </div>
-          ) : null}
-        </div>
-      </aside>
-    </div>
+    </>
   );
 }
 
@@ -396,7 +460,10 @@ export function BookingWizard({
 
 function StepIndicator({ current }: { current: number }) {
   return (
-    <ol className="flex flex-wrap items-center gap-x-2 gap-y-3" aria-label="Etapas do agendamento">
+    <ol
+      className="flex flex-wrap items-center gap-x-2 gap-y-3"
+      aria-label="Etapas do agendamento"
+    >
       {STEPS.map((entry, index) => {
         const done = index < current;
         const active = index === current;
@@ -406,7 +473,7 @@ function StepIndicator({ current }: { current: number }) {
             <span
               aria-current={active ? "step" : undefined}
               className={cn(
-                "grid size-7 shrink-0 place-items-center border text-[0.625rem] font-bold tabular-nums transition-colors",
+                "grid size-7 shrink-0 place-items-center border text-[0.6875rem] font-bold tabular-nums transition-colors",
                 active
                   ? "border-blood-500 bg-blood-500 text-bone-100"
                   : done
@@ -414,20 +481,31 @@ function StepIndicator({ current }: { current: number }) {
                     : "border-hairline text-ash-600",
               )}
             >
-              {done ? <Check className="size-3.5" aria-hidden="true" /> : index + 1}
+              {done ? (
+                <Check className="size-3.5" aria-hidden="true" />
+              ) : (
+                index + 1
+              )}
             </span>
 
             <span
               className={cn(
-                "text-[0.6875rem] font-semibold uppercase tracking-[0.12em] transition-colors",
-                active ? "text-bone-100" : done ? "text-ash-400" : "text-ash-600",
+                "label-xs transition-colors",
+                active
+                  ? "text-bone-100"
+                  : done
+                    ? "text-ash-400"
+                    : "text-ash-600",
               )}
             >
               {entry.label}
             </span>
 
             {index < STEPS.length - 1 ? (
-              <span aria-hidden="true" className="mx-1 hidden h-px w-6 bg-hairline sm:block" />
+              <span
+                aria-hidden="true"
+                className="mx-1 hidden h-px w-6 bg-hairline sm:block"
+              />
             ) : null}
           </li>
         );
@@ -448,17 +526,23 @@ function StepHeading({
   return (
     <div className="mb-8">
       <span className="overline text-blood-400">{step}</span>
-      <h2 className="display-title mt-3 text-[clamp(1.5rem,3.5vw,2.5rem)]">{title}</h2>
-      <p className="mt-3 max-w-lg text-sm leading-relaxed text-ash-400">{description}</p>
+      <h2 className="display-title mt-3 text-[clamp(1.5rem,3.5vw,2.5rem)]">
+        {title}
+      </h2>
+      <p className="mt-3 max-w-lg text-sm leading-relaxed text-ash-400">
+        {description}
+      </p>
     </div>
   );
 }
 
 function StepService({
   services,
+  selectedId,
   onSelect,
 }: {
   services: WizardService[];
+  selectedId: string;
   onSelect: (id: string) => void;
 }) {
   return (
@@ -470,35 +554,56 @@ function StepService({
       />
 
       <ul className="grid gap-3 sm:grid-cols-2">
-        {services.map((service) => (
-          <li key={service.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(service.id)}
-              className="group flex h-full w-full flex-col border border-hairline bg-ink-900 p-5 text-left transition-colors hover:border-blood-500 hover:bg-ink-850"
-            >
-              <span className="inline-grid size-10 place-items-center border border-hairline text-blood-500 transition-colors group-hover:border-blood-500 group-hover:bg-blood-500 group-hover:text-bone-100">
-                <ServiceIcon name={service.icon} className="size-4" />
-              </span>
+        {services.map((service) => {
+          const selected = service.id === selectedId;
 
-              <span className="mt-4 block text-sm font-bold uppercase tracking-[0.08em] text-bone-100">
-                {service.name}
-              </span>
-              <span className="mt-2 flex-1 text-sm leading-relaxed text-ash-400">
-                {service.shortDescription}
-              </span>
+          return (
+            <li key={service.id}>
+              <button
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onSelect(service.id)}
+                className={cn(
+                  "group relative flex h-full w-full flex-col border p-5 text-left transition-colors",
+                  selected
+                    ? "border-blood-500 bg-ink-850"
+                    : "border-hairline bg-ink-900 hover:border-blood-500 hover:bg-ink-850",
+                )}
+              >
+                {/* Ao voltar um passo, era impossível saber o que já estava
+                  escolhido: o card selecionado era idêntico aos outros. */}
+                {selected ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-4 top-4 grid size-6 place-items-center bg-blood-500 text-bone-100"
+                  >
+                    <Check className="size-3.5" />
+                  </span>
+                ) : null}
 
-              <span className="mt-4 flex items-center justify-between gap-3 border-t border-hairline pt-3 text-xs text-ash-500">
-                <span>{formatDuration(service.durationMin)}</span>
-                <span className="font-semibold text-bone-200">
-                  {service.priceFrom > 0
-                    ? `a partir de ${formatCurrency(service.priceFrom)}`
-                    : "Sem custo"}
+                <span className="inline-grid size-10 place-items-center border border-hairline text-blood-500 transition-colors group-hover:border-blood-500 group-hover:bg-blood-500 group-hover:text-bone-100">
+                  <ServiceIcon name={service.icon} className="size-4" />
                 </span>
-              </span>
-            </button>
-          </li>
-        ))}
+
+                <span className="mt-4 block text-sm font-bold uppercase tracking-[0.08em] text-bone-100">
+                  {service.name}
+                </span>
+                <span className="mt-2 flex-1 text-sm leading-relaxed text-ash-400">
+                  {service.shortDescription}
+                </span>
+
+                <span className="mt-4 flex items-center justify-between gap-3 border-t border-hairline pt-3 text-xs text-ash-500">
+                  <span>{formatDuration(service.durationMin)}</span>
+                  <span className="font-semibold text-bone-200">
+                    {service.priceFrom > 0
+                      ? `a partir de ${formatCurrency(service.priceFrom)}`
+                      : "Sem custo"}
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -506,10 +611,12 @@ function StepService({
 
 function StepArtist({
   artists,
+  selectedId,
   onSelect,
   onBack,
 }: {
   artists: WizardArtist[];
+  selectedId: string;
   onSelect: (id: string) => void;
   onBack: () => void;
 }) {
@@ -528,42 +635,61 @@ function StepArtist({
         />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
-          {artists.map((artist) => (
-            <li key={artist.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(artist.id)}
-                className="group flex h-full w-full gap-4 border border-hairline bg-ink-900 p-4 text-left transition-colors hover:border-blood-500 hover:bg-ink-850"
-              >
-                <span className="relative size-20 shrink-0 overflow-hidden bg-ink-700">
-                  <Image
-                    src={artist.avatarUrl ?? FALLBACK_IMAGE}
-                    alt=""
-                    aria-hidden="true"
-                    fill
-                    sizes="80px"
-                    placeholder="blur"
-                    blurDataURL={BLUR_DATA_URL}
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </span>
+          {artists.map((artist) => {
+            const selected = artist.id === selectedId;
 
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold uppercase tracking-[0.08em] text-bone-100">
-                    {artist.name}
-                  </span>
-                  {artist.handle ? (
-                    <span className="mt-0.5 block text-[0.625rem] uppercase tracking-[0.16em] text-blood-400">
-                      {artist.handle}
+            return (
+              <li key={artist.id}>
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onSelect(artist.id)}
+                  className={cn(
+                    "group relative flex h-full w-full gap-4 border p-4 text-left transition-colors",
+                    selected
+                      ? "border-blood-500 bg-ink-850"
+                      : "border-hairline bg-ink-900 hover:border-blood-500 hover:bg-ink-850",
+                  )}
+                >
+                  {selected ? (
+                    <span
+                      aria-hidden="true"
+                      className="absolute right-3 top-3 grid size-6 place-items-center bg-blood-500 text-bone-100"
+                    >
+                      <Check className="size-3.5" />
                     </span>
                   ) : null}
-                  <span className="mt-2 block text-xs leading-relaxed text-ash-400">
-                    {artist.specialties.join(" · ")}
+
+                  <span className="relative size-20 shrink-0 overflow-hidden bg-ink-700">
+                    <Image
+                      src={artist.avatarUrl ?? FALLBACK_IMAGE}
+                      alt=""
+                      aria-hidden="true"
+                      fill
+                      sizes="80px"
+                      placeholder="blur"
+                      blurDataURL={BLUR_DATA_URL}
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
                   </span>
-                </span>
-              </button>
-            </li>
-          ))}
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold uppercase tracking-[0.08em] text-bone-100">
+                      {artist.name}
+                    </span>
+                    {artist.handle ? (
+                      <span className="mt-0.5 block label-xs text-blood-400">
+                        {artist.handle}
+                      </span>
+                    ) : null}
+                    <span className="mt-2 block text-xs leading-relaxed text-ash-400">
+                      {artist.specialties.join(" · ")}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -608,7 +734,11 @@ function StepDateTime({
     toISO: maxDateISO,
   });
 
-  const availability = useAvailableSlots({ artistId, serviceId: service.id, dateISO });
+  const availability = useAvailableSlots({
+    artistId,
+    serviceId: service.id,
+    dateISO,
+  });
   const { slots } = availability;
 
   return (
@@ -728,7 +858,9 @@ function StepDetails({
       }
       onChange({ referenceImage: data.path });
     } catch {
-      setUploadError("Falha no envio. Verifique sua conexão e tente novamente.");
+      setUploadError(
+        "Falha no envio. Verifique sua conexão e tente novamente.",
+      );
     } finally {
       setUploading(false);
     }
@@ -779,7 +911,9 @@ function StepDetails({
               onChange={(event) => onChange({ phone: event.target.value })}
               autoComplete="tel"
               aria-invalid={Boolean(errors.phone)}
-              aria-describedby={errors.phone ? "bk-phone-error" : "bk-phone-hint"}
+              aria-describedby={
+                errors.phone ? "bk-phone-error" : "bk-phone-hint"
+              }
               placeholder="(11) 98765-4321"
             />
             <FieldError id="bk-phone-error">{errors.phone}</FieldError>
@@ -813,7 +947,9 @@ function StepDetails({
           <Textarea
             id="bk-notes"
             value={details.referenceNotes}
-            onChange={(event) => onChange({ referenceNotes: event.target.value })}
+            onChange={(event) =>
+              onChange({ referenceNotes: event.target.value })
+            }
             maxLength={1000}
             aria-invalid={Boolean(errors.referenceNotes)}
             aria-describedby="bk-notes-hint"
@@ -940,14 +1076,23 @@ function StepSummary({
           capitalize
         />
         <SummaryLine label="Horário" value={time} />
-        <SummaryLine label="Duração estimada" value={formatDuration(service.durationMin)} />
+        <SummaryLine
+          label="Duração estimada"
+          value={formatDuration(service.durationMin)}
+        />
         <SummaryLine
           label="Valor inicial"
-          value={service.priceFrom > 0 ? formatCurrency(service.priceFrom) : "Sem custo"}
+          value={
+            service.priceFrom > 0
+              ? formatCurrency(service.priceFrom)
+              : "Sem custo"
+          }
         />
         <SummaryLine label="Nome" value={details.name} />
         <SummaryLine label="Telefone" value={details.phone} />
-        {details.email ? <SummaryLine label="E-mail" value={details.email} /> : null}
+        {details.email ? (
+          <SummaryLine label="E-mail" value={details.email} />
+        ) : null}
         {details.referenceNotes ? (
           <SummaryLine label="Sua ideia" value={details.referenceNotes} />
         ) : null}
@@ -963,7 +1108,13 @@ function StepSummary({
       ) : null}
 
       <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-        <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={submitting}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          disabled={submitting}
+        >
           <ArrowLeft aria-hidden="true" />
           Editar dados
         </Button>
@@ -993,24 +1144,43 @@ function ConfirmationPanel({
   const startsAt = new Date(confirmation.startsAt);
 
   return (
-    <div className="mx-auto max-w-2xl text-center">
-      <span className="mx-auto grid size-16 place-items-center border border-status-confirmed/40 bg-status-confirmed/10 text-status-confirmed">
+    <div className="mx-auto max-w-2xl pt-28 text-center md:pt-36">
+      {/* Fim do caminho, marcado como tal. O indicador some no lugar de
+          simplesmente desaparecer: quem percorreu cinco passos merece ver os
+          cinco fechados. */}
+      <p className="mb-8 flex items-center justify-center gap-2 label-xs text-ash-500">
+        <Check className="size-3.5 text-blood-400" aria-hidden="true" />
+        Passo {STEPS.length} de {STEPS.length} — concluído
+      </p>
+
+      {/* O ícone usava `status-confirmed`, um verde que só existe no painel
+          administrativo e em nenhum outro lugar do site. Aqui ele entra no
+          vocabulário da marca: régua vermelha e o traço em off-white. */}
+      <span className="mx-auto grid size-16 place-items-center border border-hairline-strong bg-ink-850 text-bone-100">
         <CheckCircle2 className="size-8" aria-hidden="true" />
       </span>
 
-      <h2 className="display-title mt-8 text-[clamp(1.75rem,5vw,3.25rem)]">
+      <h1 className="display-title mt-8 text-[clamp(2rem,6vw,4rem)]">
         Agendamento solicitado
-      </h2>
+      </h1>
 
-      <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-ash-400">
+      <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-ash-300">
         Seu horário foi enviado para o estúdio. Em breve entramos em contato
         pelo WhatsApp para confirmar. Guarde o número da sua reserva.
       </p>
 
       <div className="surface-raised mt-10 p-6 text-left sm:p-8">
+        {/* O código vinha em vermelho display — a mesma cor das caixas de erro
+            deste mesmo fluxo. Numa tela de sucesso isso é ruído semântico. A
+            marca entra pela régua; o dado, que é o que a pessoa precisa
+            copiar, entra no branco de maior contraste. */}
         <div className="border-b border-hairline pb-5 text-center">
+          <span
+            aria-hidden="true"
+            className="mx-auto mb-4 block h-px w-10 bg-blood-500"
+          />
           <span className="overline text-ash-500">Número da reserva</span>
-          <p className="mt-2 font-display text-3xl tracking-wide text-blood-500">
+          <p className="mt-2 font-display text-3xl tracking-wide text-bone-100">
             {confirmation.code}
           </p>
         </div>
@@ -1018,15 +1188,22 @@ function ConfirmationPanel({
         <dl className="mt-5 space-y-4 text-sm">
           <div className="flex items-baseline justify-between gap-4">
             <dt className="text-ash-500">Artista</dt>
-            <dd className="text-right text-bone-100">{confirmation.artistName}</dd>
+            <dd className="text-right text-bone-100">
+              {confirmation.artistName}
+            </dd>
           </div>
           <div className="flex items-baseline justify-between gap-4">
             <dt className="text-ash-500">Serviço</dt>
-            <dd className="text-right text-bone-100">{confirmation.serviceName}</dd>
+            <dd className="text-right text-bone-100">
+              {confirmation.serviceName}
+            </dd>
           </div>
           <div className="flex items-baseline justify-between gap-4">
             <dt className="text-ash-500">Data</dt>
-            <dd className="text-right capitalize text-bone-100">
+            {/* `capitalize` maiusculiza cada palavra e escrevia "Quarta-Feira,
+                12 De Agosto". O que se quer é só a primeira letra — o resto do
+                projeto já usa `first-letter:uppercase` para isto. */}
+            <dd className="text-right text-bone-100 first-letter:uppercase">
               {formatLongDate(startsAt)}
             </dd>
           </div>
@@ -1062,9 +1239,14 @@ function ConfirmationPanel({
         </Button>
       </div>
 
-      <p className="mt-8 text-xs text-ash-600">
+      {/* Única via de recuperação da tela. Estava em 12px apagado, o menor
+          elemento de uma página em que ela é a segunda coisa mais útil. */}
+      <p className="mt-10 border-t border-hairline pt-6 text-sm text-ash-400">
         Precisa remarcar ou cancelar?{" "}
-        <Link href="/contato" className="text-blood-400 underline underline-offset-4">
+        <Link
+          href="/contato"
+          className="font-semibold text-blood-400 underline underline-offset-4 hover:text-blood-300"
+        >
           Entre em contato
         </Link>{" "}
         informando o número da reserva.
@@ -1093,7 +1275,7 @@ function SummaryRow({
   // recuo igual à largura do ícone (size-4) mais o gap.
   return (
     <div className="min-w-0">
-      <dt className="flex items-center gap-3 text-[0.625rem] uppercase tracking-[0.16em] text-ash-600">
+      <dt className="flex items-center gap-3 label-xs text-ash-600">
         <span className="shrink-0 text-blood-500" aria-hidden="true">
           {icon}
         </span>
@@ -1123,9 +1305,7 @@ function SummaryLine({
 }) {
   return (
     <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-      <dt className="text-[0.6875rem] uppercase tracking-[0.14em] text-ash-500">
-        {label}
-      </dt>
+      <dt className="label-xs text-ash-500">{label}</dt>
       <dd
         className={cn(
           "text-sm text-bone-100 sm:max-w-sm sm:text-right",
@@ -1190,12 +1370,19 @@ function useReturningClient(phone: string) {
         body: JSON.stringify({ phone: key }),
         signal: controller.signal,
       })
-        .then((response) => response.json() as Promise<{ found: boolean; firstName?: string }>)
+        .then(
+          (response) =>
+            response.json() as Promise<{ found: boolean; firstName?: string }>,
+        )
         .then((data) =>
-          setState({ key, firstName: data.found ? (data.firstName ?? null) : null }),
+          setState({
+            key,
+            firstName: data.found ? (data.firstName ?? null) : null,
+          }),
         )
         .catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === "AbortError") return;
+          if (error instanceof DOMException && error.name === "AbortError")
+            return;
           setState({ key, firstName: null });
         });
     }, 500);

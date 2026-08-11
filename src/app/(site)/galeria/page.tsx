@@ -92,7 +92,7 @@ function FilterLink({
       aria-current={active ? "true" : undefined}
       scroll={false}
       className={cn(
-        "inline-block border px-4 py-2 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] transition-colors",
+        "inline-block border px-4 py-2 label-xs transition-colors",
         active
           ? "border-blood-500 bg-blood-500 text-bone-100"
           : "border-hairline text-ash-400 hover:border-hairline-strong hover:text-bone-100",

@@ -74,7 +74,7 @@ export default async function ArtistsAdminPage() {
                         {artist.name}
                       </h2>
                       {artist.handle ? (
-                        <span className="mt-0.5 block text-[0.625rem] uppercase tracking-[0.16em] text-blood-400">
+                        <span className="mt-0.5 block label-xs text-blood-400">
                           {artist.handle}
                         </span>
                       ) : null}
@@ -100,7 +100,7 @@ export default async function ArtistsAdminPage() {
 
                   {/* Grade semanal resumida */}
                   <div className="mt-5">
-                    <span className="text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+                    <span className="label-xs text-ash-600">
                       Atende
                     </span>
                     <ul className="mt-2 flex gap-1">
@@ -112,8 +112,8 @@ export default async function ArtistsAdminPage() {
                             title={`${label}: ${works ? "atende" : "não atende"}`}
                             className={
                               works
-                                ? "grid size-7 place-items-center border border-blood-700 bg-blood-700/20 text-[0.5625rem] font-semibold uppercase text-blood-400"
-                                : "grid size-7 place-items-center border border-hairline text-[0.5625rem] uppercase text-ash-700"
+                                ? "grid size-7 place-items-center border border-blood-700 bg-blood-700/20 label-xs text-blood-400"
+                                : "grid size-7 place-items-center border border-hairline label-xs text-ash-700"
                             }
                           >
                             {label.slice(0, 1)}

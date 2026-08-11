@@ -156,7 +156,25 @@ const code = (await page.locator("text=/^IH-[A-Z0-9]{6}$/").first().textContent(
 check("passo 7: número da reserva gerado", Boolean(code), code ?? "ausente");
 notes.push(`Reserva criada: ${code}`);
 
+// A confirmação não pode reexibir o cabeçalho "Reserve seu horário": eram duas
+// manchetes do mesmo peso dizendo coisas opostas.
+const confirmationHeadings = await page
+  .locator("h1")
+  .allTextContents();
+check(
+  "confirmação tem apenas o próprio título",
+  confirmationHeadings.length === 1 && /solicitado/i.test(confirmationHeadings[0] ?? ""),
+  confirmationHeadings.join(" | ") || "nenhum h1",
+);
+
 await page.screenshot({ path: join(OUT, "booking-confirmation-1440.png"), fullPage: true });
+
+// A mesma tela em 390px — o estado final do fluxo nunca tinha sido capturado
+// no tamanho em que a maior parte das reservas acontece.
+await page.setViewportSize({ width: 390, height: 844 });
+await page.waitForTimeout(400);
+await page.screenshot({ path: join(OUT, "booking-confirmation-390.png"), fullPage: true });
+await page.setViewportSize({ width: 1440, height: 900 });
 
 // ---------------------------------------------------------------------------
 console.log("\n2. Painel administrativo");
@@ -219,10 +237,20 @@ await page.waitForSelector("text=Dashboard");
 await page.screenshot({ path: join(OUT, "admin-dashboard-1440.png"), fullPage: true });
 
 // O agendamento criado precisa aparecer na listagem.
+//
+// A conferência é feita dentro do <tbody>, e não na página inteira: o código
+// buscado também aparece como valor do campo de busca, então `text=${code}`
+// solto dava positivo mesmo quando o filtro não devolvia linha nenhuma — foi
+// assim que uma busca quebrada passou despercebida.
 await page.goto(`${BASE}/admin/agendamentos?busca=${code}`, { waitUntil: "domcontentloaded" });
 await page.waitForTimeout(800);
-const found = await page.locator(`text=${code}`).count();
-check("agendamento do site aparece no painel", found > 0);
+const rowCount = await page.locator("tbody tr").count();
+const found = await page.locator(`tbody tr:has-text("${code}")`).count();
+check(
+  "busca do painel filtra pelo código da reserva",
+  found === 1 && rowCount === 1,
+  `${found} linha(s) com o código, ${rowCount} na tabela`,
+);
 
 // Confirmar o agendamento pelo menu de ações.
 if (found > 0) {
@@ -329,11 +357,24 @@ await guest.close();
 console.log("\n4. Capturas responsivas");
 // ---------------------------------------------------------------------------
 
+/**
+ * `maxHeight` é orçamento de rolagem no celular, em pixels de documento.
+ *
+ * Existe porque "a página está longa demais" era discussão de opinião até
+ * alguém medir: a home tinha 10.978px em 390px de largura, treze telas, e o
+ * agendamento 4.070px com o rodapé ocupando 27% disso. Depois de trocar as
+ * prévias por carrosséis, compactar o card de artista e enxugar o rodapé nas
+ * rotas de conversão, ficaram 7.317px e 2.796px.
+ *
+ * Os números abaixo têm folga sobre o medido — são trava de regressão, não
+ * meta. Se uma seção nova empurrar a home de volta para as dez telas, isto
+ * falha antes de virar hábito.
+ */
 const shots = [
   { route: "/", width: 1440 },
-  { route: "/", width: 390 },
+  { route: "/", width: 390, maxHeight: 8000 },
   { route: "/agendamento", width: 1440 },
-  { route: "/agendamento", width: 390 },
+  { route: "/agendamento", width: 390, maxHeight: 3200 },
   { route: "/artistas", width: 390 },
   { route: "/galeria", width: 390 },
 ];
@@ -370,6 +411,20 @@ for (const shot of shots) {
     overflow <= 1,
     `${overflow}px de excesso`,
   );
+
+  if (shot.maxHeight) {
+    const height = await shotPage.evaluate(
+      () => document.documentElement.scrollHeight,
+    );
+    check(
+      `${shot.route} @${shot.width}px cabe no orçamento de rolagem`,
+      height <= shot.maxHeight,
+      `${height}px (limite ${shot.maxHeight}px, ${(height / 844).toFixed(1)} telas)`,
+    );
+    notes.push(
+      `Altura de ${shot.route} @${shot.width}px: ${height}px (${(height / 844).toFixed(1)} telas)`,
+    );
+  }
 
   const slug = shot.route === "/" ? "home" : shot.route.replace(/[/?=&]+/g, "-").replace(/^-/, "");
   await shotPage.screenshot({

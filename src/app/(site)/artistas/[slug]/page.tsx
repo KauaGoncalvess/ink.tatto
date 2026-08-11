@@ -106,7 +106,7 @@ export default async function ArtistPage({ params }: Props) {
                 {artist.specialties.map((specialty) => (
                   <li
                     key={specialty}
-                    className="border border-hairline px-3 py-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-bone-200"
+                    className="border border-hairline px-3 py-1.5 label-xs text-bone-200"
                   >
                     {specialty}
                   </li>

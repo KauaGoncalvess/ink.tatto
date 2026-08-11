@@ -111,7 +111,7 @@ export function AdminShell({
                 {unreadCount > 0 ? (
                   <span
                     aria-hidden="true"
-                    className="absolute -right-1 -top-1 grid size-4 place-items-center bg-blood-500 text-[0.5625rem] font-bold text-bone-100"
+                    className="absolute -right-1 -top-1 grid size-4 place-items-center bg-ink-600 text-[0.6875rem] font-bold text-bone-100"
                   >
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
@@ -191,14 +191,13 @@ function SidebarContent({
                       active ? "scale-y-100" : "scale-y-0",
                     )}
                   />
-                  <entry.Icon
-                    className={cn("size-4 shrink-0", active && "text-blood-500")}
-                    aria-hidden="true"
-                  />
+                  {/* O ícone acompanha o texto. Antes ficava vermelho junto
+                      com o marcador, dois acentos para o mesmo item. */}
+                  <entry.Icon className="size-4 shrink-0" aria-hidden="true" />
                   <span className="flex-1 truncate">{entry.label}</span>
 
                   {showBadge ? (
-                    <span className="grid min-w-5 shrink-0 place-items-center bg-blood-500 px-1 text-[0.625rem] font-bold text-bone-100">
+                    <span className="grid min-w-5 shrink-0 place-items-center bg-ink-600 px-1 text-[0.6875rem] font-bold text-bone-100">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                   ) : null}
@@ -228,7 +227,7 @@ function SidebarContent({
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm text-bone-100">{user.name}</span>
-            <span className="block truncate text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+            <span className="block truncate label-xs text-ash-600">
               {user.role === "ADMIN" ? "Administrador" : "Artista"}
             </span>
           </span>

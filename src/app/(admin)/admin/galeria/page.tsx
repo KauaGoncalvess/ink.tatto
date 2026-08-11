@@ -55,12 +55,12 @@ export default async function GalleryAdminPage() {
                     className="object-cover"
                   />
                   {!item.isPublished ? (
-                    <span className="absolute left-2 top-2 border border-hairline-strong bg-ink-950/85 px-2 py-1 text-[0.5625rem] uppercase tracking-widest text-ash-300 backdrop-blur-sm">
+                    <span className="absolute left-2 top-2 border border-hairline-strong bg-ink-950/85 px-2 py-1 label-xs text-ash-300 backdrop-blur-sm">
                       Rascunho
                     </span>
                   ) : null}
                   {item.isFeatured ? (
-                    <span className="absolute right-2 top-2 bg-blood-500 px-2 py-1 text-[0.5625rem] uppercase tracking-widest text-bone-100">
+                    <span className="absolute right-2 top-2 bg-blood-500 px-2 py-1 label-xs text-bone-100">
                       Destaque
                     </span>
                   ) : null}

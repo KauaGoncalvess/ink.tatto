@@ -200,7 +200,7 @@ function ContactLine({
     <div className="flex items-start gap-3">
       <Icon className="mt-0.5 size-4 shrink-0 text-blood-500" aria-hidden />
       <div className="min-w-0">
-        <span className="block text-[0.625rem] uppercase tracking-[0.14em] text-ash-600">
+        <span className="block label-xs text-ash-600">
           {label}
         </span>
         <span className="mt-1 block break-all text-sm text-bone-200">{value}</span>

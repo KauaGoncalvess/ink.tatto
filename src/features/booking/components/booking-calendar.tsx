@@ -134,7 +134,7 @@ export function BookingCalendar({
             <div
               key={day}
               role="columnheader"
-              className="pb-2 text-center text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-ash-600"
+              className="pb-2 text-center label-xs text-ash-600"
             >
               {day}
             </div>

@@ -236,7 +236,7 @@ function NewAppointmentForm({
                         <span className="block truncate text-sm text-bone-100">
                           {hit.name}
                           {hit.isBlocked ? (
-                            <span className="ml-2 text-[0.625rem] uppercase tracking-wider text-blood-400">
+                            <span className="ml-2 label-xs text-blood-400">
                               bloqueado
                             </span>
                           ) : null}

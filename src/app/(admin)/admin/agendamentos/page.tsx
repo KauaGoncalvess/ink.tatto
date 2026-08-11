@@ -137,7 +137,7 @@ export default async function AppointmentsPage({ searchParams }: Props) {
                       >
                         {appointment.client.name}
                       </Link>
-                      <span className="mt-0.5 block text-[0.625rem] uppercase tracking-wider text-ash-600">
+                      <span className="mt-0.5 block label-xs text-ash-600">
                         {appointment.code}
                       </span>
                     </Td>
@@ -147,7 +147,7 @@ export default async function AppointmentsPage({ searchParams }: Props) {
                     <Td className="text-ash-300">{appointment.artist.name}</Td>
                     <Td className="text-ash-300">
                       {appointment.service.name}
-                      <span className="mt-0.5 block text-[0.625rem] text-ash-600">
+                      <span className="mt-0.5 block text-[0.6875rem] text-ash-600">
                         {formatCurrency(appointment.priceEstimate)}
                       </span>
                     </Td>
@@ -185,7 +185,7 @@ export default async function AppointmentsPage({ searchParams }: Props) {
                       >
                         {appointment.client.name}
                       </Link>
-                      <span className="mt-0.5 block text-[0.625rem] uppercase tracking-wider text-ash-600">
+                      <span className="mt-0.5 block label-xs text-ash-600">
                         {appointment.code}
                       </span>
                     </div>

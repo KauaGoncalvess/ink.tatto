@@ -89,7 +89,7 @@ export function TestimonialCard({
           <span className="block truncate text-sm font-semibold text-bone-100">
             {testimonial.clientName}
           </span>
-          <span className="mt-0.5 block truncate text-[0.6875rem] uppercase tracking-[0.12em] text-ash-500">
+          <span className="mt-0.5 block truncate label-xs text-ash-500">
             {[testimonial.serviceName, testimonial.artistName]
               .filter(Boolean)
               .join(" · ")}

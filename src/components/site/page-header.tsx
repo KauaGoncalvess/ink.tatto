@@ -26,7 +26,7 @@ export function PageHeader({
     <header
       className={cn(
         "relative border-b border-hairline bg-ink-900/40",
-        "pt-32 pb-14 md:pt-40 md:pb-20",
+        "pt-28 pb-10 md:pt-40 md:pb-20",
         className,
       )}
     >

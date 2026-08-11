@@ -123,10 +123,15 @@ export function Gallery({ items, layout = "masonry", className }: Props) {
 
               <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-4 text-left">
                 <span className="min-w-0">
-                  <span className="block truncate text-xs font-semibold uppercase tracking-[0.1em] text-bone-100">
+                  {/* `truncate` cortava 13 dos 20 títulos em 390px, onde cada
+                      célula da grade tem 171px: "SERPENTE OR…", "RAMO DE
+                      OLIV…". Duas linhas acomodam todos os títulos do acervo
+                      sem alterar a altura da peça — o texto flutua sobre a
+                      máscara da foto. */}
+                  <span className="line-clamp-2 text-xs font-semibold uppercase leading-snug tracking-[0.1em] text-bone-100">
                     {item.title}
                   </span>
-                  <span className="mt-1 block text-[0.625rem] uppercase tracking-[0.16em] text-blood-400">
+                  <span className="mt-1 block label-xs text-blood-400">
                     {item.style}
                   </span>
                 </span>

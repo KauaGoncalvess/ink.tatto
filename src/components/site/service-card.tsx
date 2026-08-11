@@ -34,8 +34,8 @@ export function ServiceCard({
   return (
     <article
       className={cn(
-        "group relative isolate flex min-h-64 flex-col justify-between overflow-hidden",
-        "surface p-6 transition-colors duration-500 hover:border-hairline-strong sm:p-7",
+        "group relative isolate flex flex-col justify-between overflow-hidden sm:min-h-64",
+        "surface p-5 transition-colors duration-500 hover:border-hairline-strong sm:p-7",
         className,
       )}
     >
@@ -56,15 +56,17 @@ export function ServiceCard({
       />
 
       <div>
-        <span className="inline-grid size-12 place-items-center border border-hairline text-blood-500 transition-colors duration-500 group-hover:border-blood-500 group-hover:bg-blood-500 group-hover:text-bone-100">
-          <ServiceIcon name={service.icon} className="size-5" />
-        </span>
+        <div className="flex items-center gap-4 sm:block">
+          <span className="inline-grid size-11 shrink-0 place-items-center border border-hairline text-blood-500 transition-colors duration-500 group-hover:border-blood-500 group-hover:bg-blood-500 group-hover:text-bone-100 sm:size-12">
+            <ServiceIcon name={service.icon} className="size-5" />
+          </span>
 
-        <h3 className="mt-6 text-sm font-bold uppercase leading-snug tracking-[0.1em] text-bone-100">
-          <Link href={`/servicos#${service.slug}`} className="before:absolute before:inset-0">
-            {service.name}
-          </Link>
-        </h3>
+          <h3 className="text-sm font-bold uppercase leading-snug tracking-[0.1em] text-bone-100 sm:mt-6">
+            <Link href={`/servicos#${service.slug}`} className="before:absolute before:inset-0">
+              {service.name}
+            </Link>
+          </h3>
+        </div>
 
         <p className="mt-3 text-sm leading-relaxed text-ash-400">
           {service.shortDescription}
@@ -73,14 +75,14 @@ export function ServiceCard({
 
       <div className="mt-6 flex items-end justify-between gap-4 border-t border-hairline pt-4">
         <div>
-          <span className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-[0.14em] text-ash-500">
+          <span className="flex items-center gap-1.5 label-xs text-ash-500">
             <Clock className="size-3" aria-hidden="true" />
             {formatDuration(service.durationMin)}
           </span>
           <span className="mt-1.5 block text-sm font-semibold text-bone-100">
             {service.priceFrom > 0 ? (
               <>
-                <span className="text-[0.625rem] uppercase tracking-widest text-ash-500">
+                <span className="label-xs text-ash-500">
                   a partir de{" "}
                 </span>
                 {formatCurrency(service.priceFrom)}

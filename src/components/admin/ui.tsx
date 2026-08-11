@@ -29,7 +29,7 @@ export function AdminPageHeader({
         {breadcrumb ? (
           <Link
             href={breadcrumb.href}
-            className="mb-3 inline-block text-[0.6875rem] uppercase tracking-[0.16em] text-ash-500 transition-colors hover:text-blood-400"
+            className="mb-3 inline-block label-xs text-ash-500 transition-colors hover:text-blood-400"
           >
             ← {breadcrumb.label}
           </Link>
@@ -118,7 +118,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 border px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.1em] whitespace-nowrap",
+        "inline-flex items-center gap-1.5 border px-2.5 py-1 label-xs whitespace-nowrap",
         STATUS_STYLES[status],
         className,
       )}
@@ -140,7 +140,7 @@ export function Tag({
   return (
     <span
       className={cn(
-        "inline-block border border-hairline px-2 py-1 text-[0.625rem] uppercase tracking-[0.1em] text-ash-400",
+        "inline-block border border-hairline px-2 py-1 label-xs text-ash-400",
         className,
       )}
     >
@@ -202,7 +202,7 @@ export function StatCard({
   const content = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <span className="text-[0.625rem] uppercase leading-tight tracking-[0.14em] text-ash-500">
+        <span className="label-xs text-ash-500">
           {label}
         </span>
         {icon ? (
@@ -267,7 +267,7 @@ export function Th({
     <th
       scope="col"
       className={cn(
-        "border-b border-hairline px-4 py-3 text-left text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-ash-500",
+        "border-b border-hairline px-4 py-3 text-left label-xs text-ash-500",
         className,
       )}
       {...props}

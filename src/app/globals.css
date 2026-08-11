@@ -37,7 +37,29 @@
   /* Acento -----------------------------------------------------------------
      `blood-500` é o vermelho de marca: preenchimento, borda e ícone. Como
      TEXTO ele fica em 3.4:1 — reprovado para corpo pequeno —, então todo
-     texto vermelho usa `blood-400`, calibrado em 4.6:1 no pior fundo. */
+     texto vermelho usa `blood-400`, calibrado em 4.6:1 no pior fundo.
+
+     REGRA DE USO — o vermelho significa UMA coisa: ação e marca.
+       · ação    botão primário, link de ação, CTA
+       · marca   eyebrow, régua de seção, logotipo
+
+     Ele não é usado para mais nada. Em particular:
+       · ERRO   anda sempre com o ícone de alerta ao lado. No campo, é o
+                `FieldError`; no formulário inteiro, é o contêiner
+                `border-blood-700 bg-blood-700/10`. Vermelho como simples
+                ênfase, sem ícone e sem falha real por trás, não existe;
+       · ESTADO (hoje, ativo, selecionado, concluído) usa FORMA: anel, fundo
+                `surface-raised`, marca de seleção. Nunca cor de acento.
+
+     Uma exceção, deliberada: o trilho de 2px do item ativo da navegação do
+     painel. Ele é "você está aqui", aparece uma vez por tela e não divide o
+     campo de visão com nenhuma outra ação vermelha — é o fio da marca dentro
+     de uma ferramenta que, fora isso, é toda cinza.
+
+     O motivo é prático: quando o mesmo vermelho quer dizer marca, ação, erro,
+     sucesso, "hoje" e "ativo" ao mesmo tempo, ele para de dirigir o olho para
+     qualquer coisa. Era o caso da barra do calendário, que tinha três
+     vermelhos com três significados lado a lado. */
   --color-blood-300: #f4576c;
   --color-blood-400: #ea3d55;
   --color-blood-500: #c8102e;
@@ -164,7 +186,38 @@
   color: var(--color-bone-100);
 }
 
-/* Rótulo pequeno em caixa alta, muito espaçado — o contraponto do display. */
+/* ----------------------------------------------------------------------------
+   Escala de rótulo
+   O piso da tipografia é 11px. Antes havia texto em 8, 9 e 10px, quase sempre
+   em caixa alta com tracking até 0.32em — nesse tamanho, caixa alta espaçada
+   é desenho, não leitura. Três degraus resolvem todos os casos do projeto:
+
+     label-sm  12px  rótulo de formulário, célula de tabela, metadado
+     label-xs  11px  rótulo denso do painel, legenda de gráfico
+     overline  11px  rótulo curto de seção, o contraponto do display
+
+   Regra que acompanha a escala: tracking acima de 0.14em só em `overline`,
+   que existe justamente para textos de duas ou três palavras.
+   ------------------------------------------------------------------------- */
+
+@utility label-sm {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1.35;
+}
+
+@utility label-xs {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.35;
+}
+
 @utility overline {
   font-family: var(--font-sans);
   font-size: 0.6875rem;

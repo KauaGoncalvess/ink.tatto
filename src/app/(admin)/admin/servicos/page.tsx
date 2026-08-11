@@ -73,7 +73,7 @@ export default async function ServicesAdminPage() {
                     </Td>
                     <Td className="whitespace-nowrap text-ash-300">
                       {formatDuration(service.durationMin)}
-                      <span className="mt-0.5 block text-[0.625rem] text-ash-600">
+                      <span className="mt-0.5 block text-[0.6875rem] text-ash-600">
                         +{service.bufferMin}min buffer
                       </span>
                     </Td>
