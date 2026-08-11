@@ -3,11 +3,9 @@ import type { NextConfig } from "next";
 /**
  * Cabeçalhos de segurança.
  *
- * Não há CSP aqui de propósito: o Next injeta estilos e scripts inline no
- * runtime do App Router, e uma CSP correta exige nonce por requisição via
- * middleware. Um `script-src 'unsafe-inline'` daria a falsa sensação de
- * proteção sem proteger de fato. Os cabeçalhos abaixo são os que valem sem
- * ressalva; a CSP com nonce fica documentada no README como próximo passo.
+ * A CSP não está aqui porque precisa de um nonce novo a cada requisição —
+ * ela é montada em `src/proxy.ts`, o único ponto que roda antes do render.
+ * Abaixo ficam os cabeçalhos que são estáticos por natureza.
  */
 const securityHeaders = [
   // Impede o navegador de "adivinhar" o tipo de um arquivo enviado por cliente.
@@ -31,15 +29,49 @@ const securityHeaders = [
     : []),
 ];
 
+/**
+ * Origens externas liberadas para o otimizador de imagem.
+ *
+ * Com `STORAGE_DRIVER="s3"` os uploads passam a ser gravados no bucket e o
+ * adapter devolve uma URL absoluta (`https://cdn.../uploads/x.jpg`), que vai
+ * direto para o `src` de um `next/image`. O Next recusa qualquer host que não
+ * esteja declarado aqui — então, sem isto, ligar o S3 quebrava toda imagem
+ * enviada pelo painel, em runtime e só em produção.
+ *
+ * Derivar de `S3_PUBLIC_URL` evita a lista manual que ninguém lembra de
+ * atualizar: quem configura o bucket já configurou o host.
+ */
+function remoteImagePatterns(): NonNullable<NextConfig["images"]>["remotePatterns"] {
+  const publicUrl = process.env.S3_PUBLIC_URL?.trim();
+  if (!publicUrl) return [];
+
+  let parsed: URL;
+  try {
+    parsed = new URL(publicUrl);
+  } catch {
+    // Falhar no build é melhor que servir imagem quebrada em produção.
+    throw new Error(
+      `S3_PUBLIC_URL não é uma URL válida: ${JSON.stringify(publicUrl)}`,
+    );
+  }
+
+  return [
+    {
+      protocol: parsed.protocol.replace(":", "") as "http" | "https",
+      hostname: parsed.hostname,
+      ...(parsed.port ? { port: parsed.port } : {}),
+      pathname: `${parsed.pathname.replace(/\/$/, "")}/**`,
+    },
+  ];
+}
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
 
   images: {
     // AVIF primeiro: fotografia escura comprime bem melhor que em WebP.
     formats: ["image/avif", "image/webp"],
-    // Todas as imagens são locais (/public). Se um dia forem servidas de um
-    // bucket, declare o host aqui — o Next bloqueia origens não listadas.
-    remotePatterns: [],
+    remotePatterns: remoteImagePatterns(),
   },
 
   async headers() {

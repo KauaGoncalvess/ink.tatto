@@ -197,10 +197,40 @@ pré-preenchida.
 
 ## Deploy
 
-1. Provisione um PostgreSQL e aponte `DATABASE_URL`.
-2. Defina `AUTH_SECRET` (`openssl rand -base64 48`) e `NEXT_PUBLIC_SITE_URL`.
-3. `npm run db:deploy` para aplicar as migrations.
-4. `npm run build && npm run start`.
+### Checklist mínimo
+
+Sem estes cinco passos o deploy sobe quebrado — nenhum é opcional.
+
+1. **PostgreSQL provisionado** e `DATABASE_URL` apontando para ele. Em
+   plataforma serverless, use a URL **do pooler** (PgBouncer, Neon, Supabase
+   pooler): cada instância abre a própria conexão e um Postgres pequeno esgota
+   o limite antes de o tráfego chegar.
+2. **`AUTH_SECRET`** gerado de verdade (`openssl rand -base64 48`). A aplicação
+   se recusa a assinar sessão com menos de 32 bytes — o valor de exemplo do
+   `.env.example` não serve.
+3. **`NEXT_PUBLIC_SITE_URL`** com o domínio final. É de onde saem canonical,
+   Open Graph e sitemap; apontando para `localhost`, o Google indexa errado.
+4. **`npm run db:deploy`** para aplicar as migrations. Este comando **não**
+   roda o seed — dados de demonstração ficam de fora de produção por padrão,
+   que é o comportamento desejado.
+5. **Trocar a senha do administrador.** Se você rodar o seed para ter dados
+   iniciais, ele cria `admin@inkhouse.studio` com a senha do `.env`. Publicar
+   com a senha de exemplo é entregar o painel.
+
+Depois: `npm run build && npm run start`.
+
+### Se a plataforma for serverless (Vercel, Cloud Run, Lambda)
+
+O disco é efêmero e há várias instâncias. Duas variáveis deixam de ser opcionais:
+
+- `STORAGE_DRIVER="s3"` + as `S3_*` — senão toda imagem enviada pelo painel
+  desaparece no próximo deploy;
+- `UPSTASH_REDIS_REST_URL` + `_TOKEN` — senão cada instância conta o rate limit
+  por si, e o limite efetivo vira N vezes o configurado.
+
+O host do bucket é liberado automaticamente para o otimizador de imagem a
+partir de `S3_PUBLIC_URL` (`next.config.ts`); uma URL malformada falha no build,
+em vez de quebrar a imagem só em produção.
 
 Os três pontos abaixo têm padrão que funciona sozinho e uma variável de ambiente
 que troca a implementação — nenhum exige mexer em código.
