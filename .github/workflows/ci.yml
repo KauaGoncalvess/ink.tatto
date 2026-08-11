@@ -1,0 +1,160 @@
+name: CI
+
+# Roda em qualquer push e em qualquer pull request. O `concurrency` cancela a
+# execução anterior do mesmo ref: numa sequência de commits, só interessa o
+# resultado do último.
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Segredo de teste, descartável e público de propósito — só precisa ter os
+  # 32 bytes que a aplicação exige para assinar sessão.
+  AUTH_SECRET: ci-secret-descartavel-com-mais-de-32-caracteres
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/inkhouse?schema=public
+  NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3100
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Tipos, lint, testes e build.
+  #
+  # O Postgres é serviço de verdade, e não mock: os testes de autorização
+  # chamam as Server Actions contra o banco (`src/features/admin/
+  # authorization.test.ts`) e se pulam sozinhos quando não há conexão. Sem o
+  # serviço aqui, eles passariam por omissão — que é o pior resultado possível
+  # para um teste de permissão.
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Tipos, lint, testes e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: inkhouse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Aplicar migrations
+        run: npx prisma migrate deploy
+
+      - name: Verificar
+        run: npm run verify
+
+  # ---------------------------------------------------------------------------
+  # Navegador de verdade: fluxo ponta a ponta, acessibilidade e orçamento de
+  # rolagem. É aqui que aparecem os problemas que nenhum teste unitário pega —
+  # foco preso, contraste calculado em runtime, página que cresceu demais.
+  # ---------------------------------------------------------------------------
+  browser:
+    name: E2E e acessibilidade
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: verify
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: inkhouse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Preparar banco com dados de demonstração
+        run: |
+          npx prisma migrate deploy
+          npm run db:seed
+
+      # Só o Chromium: os scripts usam um binário local quando existe e caem
+      # para o do Playwright caso contrário, então aqui basta este.
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - run: npm run build
+
+      # `nohup` para o processo sobreviver ao fim deste passo — os passos
+      # seguintes rodam em shells novos e precisam do servidor no ar.
+      - name: Subir o servidor
+        run: |
+          nohup npm run start -- -p 3100 > /tmp/server.log 2>&1 &
+
+          # O healthcheck toca o banco, então "respondeu 200" significa
+          # aplicação de pé E Postgres alcançável — não só porta aberta.
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3100/api/health > /dev/null; then
+              echo "servidor pronto"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "servidor não respondeu em 60s. Log:"
+          cat /tmp/server.log
+          exit 1
+
+      - name: Concorrência (uma reserva vence, as outras recebem conflito)
+        run: npm run test:concurrency
+
+      - name: Fluxo ponta a ponta
+        run: npm run e2e
+
+      - name: Acessibilidade (WCAG 2.1 AA)
+        run: npm run a11y
+
+      - name: Peso por rota
+        run: npm run perf
+
+      # As capturas são o que permite revisar layout sem rodar nada
+      # localmente; o relatório do axe diz exatamente qual nó reprovou.
+      - name: Guardar capturas e relatórios
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verificacao
+          path: .verification/
+          retention-days: 14
+
+      - name: Log do servidor (quando algo falha)
+        if: failure()
+        run: cat /tmp/server.log || true

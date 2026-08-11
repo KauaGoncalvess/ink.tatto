@@ -57,6 +57,7 @@ configurações são restritos a administradores.
 | `npm run e2e` | Percurso ponta a ponta em navegador real + capturas |
 | `npm run a11y` | axe-core em 31 estados de tela (WCAG 2.1 AA) |
 | `npm run perf` | Peso de JS/CSS por rota, cru e comprimido |
+| `GET /api/health` | Healthcheck: 200 com o banco alcançável, 503 sem |
 | `npm run db:migrate` / `db:seed` / `db:reset` / `db:studio` | Banco |
 | `npm run images:placeholders` | Gera os placeholders on-brand |
 | `npm run images:fetch` | Baixa fotografias reais para os mesmos caminhos |
@@ -219,18 +220,73 @@ Sem estes cinco passos o deploy sobe quebrado — nenhum é opcional.
 
 Depois: `npm run build && npm run start`.
 
-### Se a plataforma for serverless (Vercel, Cloud Run, Lambda)
+### Vercel
 
-O disco é efêmero e há várias instâncias. Duas variáveis deixam de ser opcionais:
+O projeto já vem configurado: `vercel.json` fixa a região em `gru1` (São
+Paulo), `package.json` declara `engines.node` e o script `vercel-build` roda
+`prisma migrate deploy` antes do build — a Vercel prefere `vercel-build` a
+`build` quando ele existe, então a migration é aplicada a cada deploy sem
+nenhum passo manual.
 
-- `STORAGE_DRIVER="s3"` + as `S3_*` — senão toda imagem enviada pelo painel
-  desaparece no próximo deploy;
-- `UPSTASH_REDIS_REST_URL` + `_TOKEN` — senão cada instância conta o rate limit
-  por si, e o limite efetivo vira N vezes o configurado.
+**Variáveis no painel da Vercel** (Settings → Environment Variables):
+
+| Variável | Valor |
+| --- | --- |
+| `DATABASE_URL` | URL **do pooler** (ver abaixo) |
+| `AUTH_SECRET` | `openssl rand -base64 48` |
+| `NEXT_PUBLIC_SITE_URL` | `https://seu-dominio.com.br` |
+| `STORAGE_DRIVER` | `s3` |
+| `S3_BUCKET` `S3_REGION` `S3_ACCESS_KEY_ID` `S3_SECRET_ACCESS_KEY` `S3_PUBLIC_URL` | do seu bucket |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | do seu Redis |
+| `RESEND_API_KEY` / `EMAIL_FROM` | opcional, para o e-mail ao cliente |
+
+**As três primeiras são obrigatórias.** `STORAGE_DRIVER="s3"` é obrigatório na
+prática: o disco da Vercel é somente leitura em runtime, e sem isso qualquer
+upload pelo painel falha — com uma mensagem explícita dizendo qual variável
+falta, não com um `EROFS` críptico. O `UPSTASH_*` importa porque a Vercel roda
+várias instâncias: sem Redis, cada uma conta o rate limit por si e o limite
+efetivo vira N vezes o configurado.
 
 O host do bucket é liberado automaticamente para o otimizador de imagem a
-partir de `S3_PUBLIC_URL` (`next.config.ts`); uma URL malformada falha no build,
-em vez de quebrar a imagem só em produção.
+partir de `S3_PUBLIC_URL` (`next.config.ts`); uma URL malformada falha no
+build, em vez de quebrar a imagem só em produção.
+
+**Banco: use o pooler.** Cada invocação de função abre a própria conexão, e um
+Postgres pequeno esgota o limite antes de o tráfego chegar. Todo provedor
+oferece as duas URLs — no Neon é a que tem `-pooler` no host; no Supabase, a
+porta `6543`. É a do pooler que vai em `DATABASE_URL`.
+
+**Preview deployments compartilham o banco.** Por padrão a Vercel usa as mesmas
+variáveis em Preview e Production, ou seja, um preview roda `migrate deploy`
+**no banco de produção**. Duas saídas: dar a cada branch o seu banco (Neon e
+Supabase fazem branching de banco), ou restringir as variáveis ao ambiente
+Production e deixar Preview com um banco de rascunho. Fazer isso antes do
+primeiro preview evita uma migration indesejada em produção.
+
+**Ajuste de timeout, se precisar.** O export CSV e o upload rodam dentro do
+limite padrão de função. Se a base crescer a ponto de o export estourar,
+adicione ao `vercel.json`:
+
+```json
+"functions": { "src/app/api/admin/export/route.ts": { "maxDuration": 60 } }
+```
+
+### Integração contínua
+
+`.github/workflows/ci.yml` roda em todo push e pull request, em dois estágios:
+
+1. **Tipos, lint, testes e build** — com um Postgres de verdade como serviço.
+   Não é capricho: os testes de autorização chamam as Server Actions contra o
+   banco e **se pulam sozinhos quando não há conexão**. Sem o serviço, eles
+   passariam por omissão, que é o pior resultado possível para um teste de
+   permissão.
+2. **Navegador** — sobe a aplicação, espera o `/api/health` responder (o
+   healthcheck toca o banco, então 200 significa aplicação *e* banco de pé) e
+   roda concorrência, E2E, acessibilidade e a medição de peso. As capturas e os
+   relatórios ficam como artefato do run por 14 dias.
+
+Nenhum segredo é necessário: o workflow gera um `AUTH_SECRET` descartável e
+sobe o próprio banco.
 
 Os três pontos abaixo têm padrão que funciona sozinho e uma variável de ambiente
 que troca a implementação — nenhum exige mexer em código.

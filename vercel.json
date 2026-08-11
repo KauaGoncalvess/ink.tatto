@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "//": [
+    "São Paulo. O estúdio, os clientes e (presumivelmente) o banco estão no",
+    "Brasil — rodar as funções em Washington, o padrão, adicionaria uma",
+    "viagem de ida e volta transatlântica a cada consulta de disponibilidade.",
+    "Se o seu Postgres ficar em outra região, mude aqui para a região dele:",
+    "o que pesa é a distância entre função e banco, não entre função e",
+    "visitante."
+  ],
+  "regions": ["gru1"]
+}

@@ -99,8 +99,32 @@ function generateName(mime: string): string {
 // Driver local
 // ---------------------------------------------------------------------------
 
+/**
+ * Plataformas com disco efêmero e somente leitura no runtime.
+ *
+ * Gravar em `public/` ali falha com `EROFS: read-only file system` — um erro
+ * que não diz a ninguém qual variável está errada. Pior: em algumas
+ * configurações a escrita passa, o arquivo existe pelo resto da requisição e
+ * some no próximo deploy, o que dá um bug que só aparece dias depois.
+ */
+function ephemeralFilesystem(): string | null {
+  if (process.env.VERCEL) return "Vercel";
+  if (process.env.K_SERVICE) return "Cloud Run";
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME) return "AWS Lambda";
+  return null;
+}
+
 const localAdapter: StorageAdapter = {
   async save(buffer, folder) {
+    const platform = ephemeralFilesystem();
+    if (platform) {
+      throw new Error(
+        `Upload em disco local não funciona na ${platform}: o sistema de ` +
+          `arquivos é efêmero e as imagens somem no próximo deploy. ` +
+          `Defina STORAGE_DRIVER="s3" e as variáveis S3_* (veja .env.example).`,
+      );
+    }
+
     const detected = sniffImageType(buffer);
     if (!detected) throw new Error("Formato de imagem não reconhecido.");
 
