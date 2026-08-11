@@ -162,6 +162,14 @@ export const RATE_LIMITS = {
   booking: { limit: 5, windowMs: 60 * 60_000 },
   /** 10 uploads de referência por IP por hora (visitante). */
   upload: { limit: 10, windowMs: 60 * 60_000 },
+  /**
+   * 5 trocas de senha por usuário a cada 15 minutos.
+   *
+   * A troca exige a senha atual, o que transforma o formulário num oráculo
+   * para quem tomou uma sessão emprestada — sem limite, dá para varrer senhas
+   * a partir de um navegador já aberto.
+   */
+  passwordChange: { limit: 5, windowMs: 15 * 60_000 },
 } as const;
 
 /**

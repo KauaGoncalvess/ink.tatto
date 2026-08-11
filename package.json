@@ -19,6 +19,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "admin:create": "tsx scripts/create-admin.ts",
     "db:reset": "prisma migrate reset --force",
     "images:placeholders": "tsx scripts/generate-placeholders.ts",
     "images:fetch": "tsx scripts/fetch-images.ts",

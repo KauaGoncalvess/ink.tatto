@@ -6,9 +6,16 @@
  * de cada artista e passam pelo mesmo motor de disponibilidade usado em
  * produção, então nenhum deles conflita ou cai fora do expediente.
  *
+ * ATENÇÃO: este script APAGA TODAS AS TABELAS antes de popular. É ferramenta
+ * de desenvolvimento e demonstração — nunca de produção. Para colocar um
+ * administrador num banco de produção sem tocar em mais nada, use
+ * `npm run admin:create`.
+ *
  * Uso:  npm run db:seed
  *       npm run db:reset   (recria o banco e roda o seed)
  */
+
+import { randomBytes } from "node:crypto";
 
 import { PrismaClient, type AppointmentStatus, type Prisma } from "@prisma/client";
 
@@ -28,6 +35,17 @@ import { hashPassword } from "../src/lib/auth/password";
 const prisma = new PrismaClient();
 
 const TIMEZONE = "America/Sao_Paulo";
+
+/**
+ * Senha dos logins de artista.
+ *
+ * Era a string literal "InkHouse@2026", a mesma publicada no README — cinco
+ * contas com acesso ao painel e senha conhecida por qualquer um que lesse o
+ * repositório. Sem `SEED_ARTIST_PASSWORD` agora sai uma senha aleatória por
+ * execução, impressa no fim: quem precisa dela tem, e quem lê o código não.
+ */
+const ARTIST_PASSWORD =
+  process.env.SEED_ARTIST_PASSWORD ?? randomBytes(9).toString("base64url");
 
 /** PRNG com semente fixa: o seed é reproduzível entre execuções. */
 function makeRandom(seed: number) {
@@ -164,7 +182,7 @@ async function seedArtists(services: Map<string, string>) {
       data: {
         email: `${artist.slug}@inkhouse.studio`,
         name: artist.name,
-        passwordHash: await hashPassword("InkHouse@2026"),
+        passwordHash: await hashPassword(ARTIST_PASSWORD),
         role: "ARTIST",
       },
     });
@@ -460,7 +478,39 @@ async function seedNotifications() {
   }
 }
 
+/**
+ * Recusa rodar em produção.
+ *
+ * `clearDatabase()` apaga todas as tabelas, e um `npm run db:seed` digitado
+ * com o `DATABASE_URL` de produção carregado no ambiente é irreversível. A
+ * checagem é por `NODE_ENV`, então `prisma migrate reset` local segue
+ * funcionando normalmente.
+ */
+function assertNotProduction() {
+  if (process.env.NODE_ENV !== "production") return;
+  if (process.env.SEED_ALLOW_PRODUCTION === "1") {
+    console.warn(
+      "⚠ SEED_ALLOW_PRODUCTION=1 — apagando todas as tabelas em NODE_ENV=production.",
+    );
+    return;
+  }
+
+  console.error(`
+✗ Seed bloqueado: NODE_ENV=production.
+
+  Este script apaga TODAS as tabelas antes de popular com dados fictícios.
+  Para criar um administrador em produção sem destruir nada:
+
+    ADMIN_EMAIL=voce@estudio.com.br ADMIN_PASSWORD='...' npm run admin:create
+
+  Se você realmente quer apagar este banco, repita com SEED_ALLOW_PRODUCTION=1.
+`);
+  process.exit(1);
+}
+
 async function main() {
+  assertNotProduction();
+
   console.log("→ limpando dados existentes…");
   await clearDatabase();
 
@@ -503,8 +553,11 @@ async function main() {
     email: ${admin.email}
     senha: ${admin.password}
 
-  Os artistas também têm acesso (papel ARTIST) com a senha padrão InkHouse@2026.
-  Troque as senhas antes de qualquer deploy público.
+  Artistas (papel ARTIST) entram com o próprio e-mail e a senha:
+    ${ARTIST_PASSWORD}
+
+  Estas credenciais são de demonstração. Em produção, use
+  \`npm run admin:create\` e troque a senha em /admin/conta.
 `);
 }
 

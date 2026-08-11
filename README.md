@@ -33,15 +33,21 @@ npm run dev
 
 Site em `http://localhost:3000` · painel em `http://localhost:3000/admin`.
 
-**Acesso do seed** (troque antes de qualquer deploy público):
+**Acesso do seed** — credenciais de desenvolvimento, nunca de produção:
 
 | Papel | E-mail | Senha |
 | --- | --- | --- |
 | Administrador | `admin@inkhouse.studio` | `InkHouse@2026` |
-| Artista | `marina-vasquez@inkhouse.studio` | `InkHouse@2026` |
+| Artista | `marina-vasquez@inkhouse.studio` | impressa ao fim do seed |
+
+A senha dos artistas é sorteada a cada execução (ou fixada em
+`SEED_ARTIST_PASSWORD`). Era um literal no código, igual para as cinco contas
+e publicado aqui — cinco logins de painel com senha conhecida por quem lesse o
+repositório.
 
 Artistas veem agenda, clientes, galeria e depoimentos; serviços, horários e
-configurações são restritos a administradores.
+configurações são restritos a administradores. Qualquer um dos dois papéis
+troca a própria senha em `/admin/conta`.
 
 ---
 
@@ -55,9 +61,10 @@ configurações são restritos a administradores.
 | `npm run test` | Vitest: disponibilidade, schemas, sessão e autorização |
 | `npm run test:concurrency` | Prova que reservas simultâneas não duplicam |
 | `npm run e2e` | Percurso ponta a ponta em navegador real + capturas |
-| `npm run a11y` | axe-core em 31 estados de tela (WCAG 2.1 AA) |
+| `npm run a11y` | axe-core em 32 estados de tela (WCAG 2.1 AA) |
 | `npm run perf` | Peso de JS/CSS por rota, cru e comprimido |
 | `GET /api/health` | Healthcheck: 200 com o banco alcançável, 503 sem |
+| `npm run admin:create` | Cria ou redefine a senha de um administrador |
 | `npm run db:migrate` / `db:seed` / `db:reset` / `db:studio` | Banco |
 | `npm run images:placeholders` | Gera os placeholders on-brand |
 | `npm run images:fetch` | Baixa fotografias reais para os mesmos caminhos |
@@ -161,7 +168,9 @@ fotos reais chegarem.
   invocada por POST direto, sem passar pela navegação. O papel vem do banco, não
   do token, então revogar acesso vale na hora.
 - Zod valida toda entrada no servidor; a validação no cliente é só UX.
-- Rate limiting em login, agendamento, upload e busca de cliente por telefone.
+- Rate limiting em login, agendamento, upload, busca de cliente por telefone e
+  troca de senha — esta última por usuário, porque exigir a senha atual
+  transforma o formulário num oráculo para quem tomou uma sessão emprestada.
 - Uploads: tipo verificado pela **assinatura binária**, não pelo `Content-Type`
   (que o cliente escolhe); nome gerado no servidor; 5 MB de limite.
 - **CSP com nonce por requisição**, gerada em `src/proxy.ts` e combinada com
@@ -214,11 +223,22 @@ Sem estes cinco passos o deploy sobe quebrado — nenhum é opcional.
 4. **`npm run db:deploy`** para aplicar as migrations. Este comando **não**
    roda o seed — dados de demonstração ficam de fora de produção por padrão,
    que é o comportamento desejado.
-5. **Trocar a senha do administrador.** Se você rodar o seed para ter dados
-   iniciais, ele cria `admin@inkhouse.studio` com a senha do `.env`. Publicar
-   com a senha de exemplo é entregar o painel.
+5. **Criar o administrador**, com o `DATABASE_URL` de produção no ambiente:
+
+   ```bash
+   ADMIN_EMAIL=voce@estudio.com.br ADMIN_PASSWORD='uma senha longa' npm run admin:create
+   ```
+
+   O comando toca uma linha da tabela `User` e mais nada. Rodar de novo com
+   outra senha é o modo "esqueci a senha" — e também recupera uma conta que
+   tenha sido desativada ou rebaixada.
 
 Depois: `npm run build && npm run start`.
+
+> **Não rode `npm run db:seed` em produção.** Ele apaga todas as tabelas antes
+> de inserir clientes e agendamentos fictícios. Com `NODE_ENV=production` ele
+> se recusa a rodar; a recusa é uma rede de proteção, não um convite a
+> contorná-la.
 
 ### Vercel
 
@@ -319,7 +339,7 @@ O que já foi executado e passa neste projeto:
 - E2E em navegador real: agendamento completo até o número da reserva, login,
   confirmação do agendamento no painel, varredura de todas as rotas, H1 único
   por página e ausência de scroll horizontal em 390px e 1440px;
-- **acessibilidade: 31 estados de tela, zero violações** de WCAG 2.1 AA no
+- **acessibilidade: 32 estados de tela, zero violações** de WCAG 2.1 AA no
   axe-core — rotas públicas e do painel, em 390px e 1440px, incluindo estados
   que só existem depois de uma interação (lightbox, menu mobile, cada passo do
   agendamento, diálogo de CRUD).

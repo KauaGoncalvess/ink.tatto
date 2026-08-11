@@ -14,6 +14,7 @@ import {
   type LucideIcon,
   Menu,
   Bell as BellIcon,
+  UserCog,
   MessageSquareQuote,
   PenTool,
   Settings,
@@ -221,7 +222,11 @@ function SidebarContent({
 
       {/* Usuário */}
       <div className="border-t border-hairline p-3">
-        <div className="flex items-center gap-3 px-2 py-2">
+        <Link
+          href="/admin/conta"
+          onClick={onNavigate}
+          className="flex items-center gap-3 px-2 py-2 transition-colors hover:bg-ink-850"
+        >
           <span className="grid size-9 shrink-0 place-items-center border border-hairline bg-ink-800 text-xs font-bold text-bone-200">
             {initials(user.name)}
           </span>
@@ -240,7 +245,13 @@ function SidebarContent({
               <span className="sr-only">{unreadCount} notificações não lidas</span>
             </span>
           ) : null}
-        </div>
+
+          <UserCog
+            aria-hidden="true"
+            className="size-4 shrink-0 text-ash-600"
+          />
+          <span className="sr-only">Abrir minha conta</span>
+        </Link>
 
         <form action={logout}>
           <button

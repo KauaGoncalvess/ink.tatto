@@ -5,10 +5,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { fakeVerify, verifyPassword } from "@/lib/auth/password";
+import { fakeVerify, hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSessionCookie, destroySessionCookie } from "@/lib/auth/session";
+import { AuthorizationError, requireUser } from "@/lib/auth/guards";
 import { clientIp, hit, RATE_LIMITS, reset } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
+import { changePasswordSchema } from "@/schemas/account";
 
 /**
  * Autenticação do painel administrativo.
@@ -128,4 +130,90 @@ export async function login(
 export async function logout(): Promise<void> {
   await destroySessionCookie();
   redirect("/admin/login");
+}
+
+/**
+ * Troca a senha do usuário da sessão.
+ *
+ * O alvo é sempre `actor.userId`, nunca um id vindo do cliente: assim não
+ * existe nem a forma de pedir a troca da senha de outra pessoa. Exigir a senha
+ * atual protege contra sessão esquecida aberta — sem isso, quem senta na
+ * máquina troca a senha e toma a conta.
+ */
+
+export type ChangePasswordResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string; fieldErrors?: Record<string, string> };
+
+export async function changePassword(input: unknown): Promise<ChangePasswordResult> {
+  let actor;
+  try {
+    actor = await requireUser();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: error.message };
+    throw error;
+  }
+
+  const limit = await hit(
+    `password-change:${actor.userId}`,
+    RATE_LIMITS.passwordChange.limit,
+    RATE_LIMITS.passwordChange.windowMs,
+  );
+  if (!limit.ok) {
+    return {
+      ok: false,
+      error: `Muitas tentativas. Tente novamente em ${Math.ceil(limit.retryAfter / 60)} minutos.`,
+    };
+  }
+
+  const parsed = changePasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      fieldErrors[issue.path.map(String).join(".")] ??= issue.message;
+    }
+    return { ok: false, error: "Confira os dados informados.", fieldErrors };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: actor.userId },
+    select: { passwordHash: true },
+  });
+
+  if (!user) {
+    return { ok: false, error: "Sua conta não está mais ativa." };
+  }
+
+  const valid = await verifyPassword(parsed.data.currentPassword, user.passwordHash);
+  if (!valid) {
+    return {
+      ok: false,
+      error: "Senha atual incorreta.",
+      fieldErrors: { currentPassword: "Senha atual incorreta." },
+    };
+  }
+
+  await prisma.user.update({
+    where: { id: actor.userId },
+    data: { passwordHash: await hashPassword(parsed.data.newPassword) },
+  });
+
+  // Acertou a senha atual: zera o contador para não punir quem só errou de
+  // digitação nas tentativas anteriores.
+  await reset(`password-change:${actor.userId}`);
+
+  await recordAudit({
+    actor,
+    action: "UPDATE",
+    entity: "User",
+    entityId: actor.userId,
+    summary: "Trocou a própria senha.",
+  });
+
+  // A sessão continua válida de propósito: o token não guarda a senha, e
+  // deslogar depois de uma troca bem-sucedida só geraria a dúvida de se deu
+  // certo. Sessões em outros aparelhos seguem abertas — encerrá-las exigiria
+  // versionar o token, que é trabalho para quando houver "sair de todos os
+  // dispositivos".
+  return { ok: true, message: "Senha alterada." };
 }

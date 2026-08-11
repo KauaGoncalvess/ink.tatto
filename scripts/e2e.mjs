@@ -285,12 +285,24 @@ const adminRoutes = [
   "/admin/galeria",
   "/admin/depoimentos",
   "/admin/configuracoes",
+  "/admin/conta",
 ];
 
 for (const route of adminRoutes) {
   const response = await page.goto(`${BASE}${route}`, { waitUntil: "domcontentloaded" });
   check(`carrega ${route}`, response?.status() === 200, `HTTP ${response?.status()}`);
 }
+
+// Troca de senha: caminho de recusa.
+await page.goto(`${BASE}/admin/conta`, { waitUntil: "domcontentloaded" });
+await page.fill("#currentPassword", "senha-errada-de-proposito");
+await page.fill("#newPassword", "uma-senha-nova-bem-longa");
+await page.fill("#confirmPassword", "uma-senha-nova-bem-longa");
+await page.getByRole("button", { name: /Trocar senha/i }).click();
+
+const pwdError = page.getByRole("alert").filter({ hasText: /incorreta/i }).first();
+await pwdError.waitFor({ state: "visible", timeout: 15000 });
+check("troca de senha recusa senha atual errada", true);
 
 await page.goto(`${BASE}/admin/calendario`, { waitUntil: "domcontentloaded" });
 await page.waitForTimeout(800);

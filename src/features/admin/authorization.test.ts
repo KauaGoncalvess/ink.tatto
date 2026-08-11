@@ -46,6 +46,8 @@ const { deleteClient, saveClient, saveService } =
 const { saveOpeningHours } = await import("@/features/admin/hours-actions");
 const { updateAppointmentStatus } =
   await import("@/features/appointments/actions");
+const { changePassword } = await import("@/features/auth/actions");
+const { hashPassword, verifyPassword } = await import("@/lib/auth/password");
 
 const STAMP = Date.now();
 const TAG = `authztest-${STAMP}`;
@@ -72,6 +74,9 @@ const users: Record<"admin" | "artist" | "inactive", SessionPayload> = {
   inactive: {} as SessionPayload,
 };
 
+/** Senha real dos usuários de teste — usada pelos casos de troca de senha. */
+const CURRENT_PASSWORD = "senha-atual-do-teste";
+
 async function createUser(
   kind: "admin" | "artist" | "inactive",
 ): Promise<SessionPayload> {
@@ -80,9 +85,7 @@ async function createUser(
     data: {
       email: `${TAG}-${kind}@teste.local`,
       name: `Teste ${kind}`,
-      // Hash inerte: o login não é exercitado aqui, só a autorização.
-      passwordHash:
-        "$2a$12$0000000000000000000000000000000000000000000000000000",
+      passwordHash: await hashPassword(CURRENT_PASSWORD),
       role,
       isActive: kind !== "inactive",
     },
@@ -255,6 +258,98 @@ describe.skipIf(!reachable)("autorização das Server Actions", () => {
 
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.error).toMatch(/Sessão expirada/i);
+  });
+
+  // -------------------------------------------------------------------------
+  // Troca de senha
+  // -------------------------------------------------------------------------
+
+  it("não troca senha sem sessão", async () => {
+    auth.session = null;
+
+    const result = await changePassword({
+      currentPassword: CURRENT_PASSWORD,
+      newPassword: "uma-senha-nova-longa",
+      confirmPassword: "uma-senha-nova-longa",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.error).toMatch(/Sessão expirada/i);
+  });
+
+  it("não troca senha com a senha atual errada", async () => {
+    auth.session = users.artist;
+
+    const result = await changePassword({
+      currentPassword: "chute-errado",
+      newPassword: "uma-senha-nova-longa",
+      confirmPassword: "uma-senha-nova-longa",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.fieldErrors?.currentPassword).toMatch(
+      /incorreta/i,
+    );
+
+    // O hash não pode ter mudado.
+    const user = await prisma.user.findUnique({
+      where: { id: users.artist.userId },
+      select: { passwordHash: true },
+    });
+    await expect(
+      verifyPassword(CURRENT_PASSWORD, user!.passwordHash),
+    ).resolves.toBe(true);
+  });
+
+  it("recusa nova senha curta demais", async () => {
+    auth.session = users.artist;
+
+    const result = await changePassword({
+      currentPassword: CURRENT_PASSWORD,
+      newPassword: "curta",
+      confirmPassword: "curta",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.fieldErrors?.newPassword).toMatch(
+      /12 caracteres/,
+    );
+  });
+
+  it("só altera o usuário da sessão, ignorando id vindo do cliente", async () => {
+    // O cenário que a action tem de tornar impossível: um artista mandando o
+    // id do administrador junto do payload para trocar a senha dele.
+    auth.session = users.artist;
+
+    const result = await changePassword({
+      userId: users.admin.userId,
+      id: users.admin.userId,
+      currentPassword: CURRENT_PASSWORD,
+      newPassword: "senha-nova-do-artista",
+      confirmPassword: "senha-nova-do-artista",
+    });
+
+    expect(result.ok).toBe(true);
+
+    const [artist, admin] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: users.artist.userId },
+        select: { passwordHash: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: users.admin.userId },
+        select: { passwordHash: true },
+      }),
+    ]);
+
+    // A do artista mudou…
+    await expect(
+      verifyPassword("senha-nova-do-artista", artist!.passwordHash),
+    ).resolves.toBe(true);
+    // …e a do administrador continua intacta.
+    await expect(
+      verifyPassword(CURRENT_PASSWORD, admin!.passwordHash),
+    ).resolves.toBe(true);
   });
 
   it("registra na auditoria quem de fato executou", async () => {

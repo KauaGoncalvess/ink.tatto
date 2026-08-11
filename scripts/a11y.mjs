@@ -219,6 +219,7 @@ if (loggedIn) {
     "/admin/galeria",
     "/admin/depoimentos",
     "/admin/notificacoes",
+    "/admin/conta",
     "/admin/configuracoes",
   ];
 
