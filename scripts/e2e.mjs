@@ -50,6 +50,12 @@ const context = await browser.newContext({
   timezoneId: "America/Sao_Paulo",
 });
 
+// Máquina de CI tem dois núcleos e divide CPU com a otimização de imagem do
+// Next. Os 30s padrão do Playwright são folgados numa máquina de desenvolvimento
+// e apertados ali.
+const NAV_TIMEOUT = 60_000;
+context.setDefaultNavigationTimeout(NAV_TIMEOUT);
+
 /** Erros de console em qualquer página são falha de verificação. */
 const consoleErrors = [];
 context.on("page", (page) => {
@@ -312,25 +318,46 @@ await page.screenshot({ path: join(OUT, "admin-calendario-1440.png"), fullPage: 
 console.log("\n3. Páginas públicas");
 // ---------------------------------------------------------------------------
 
+// `h1` marca as páginas de conteúdo, onde vale conferir a hierarquia. O
+// sitemap e o robots não são HTML, e a galeria filtrada repete o H1 da galeria.
 const publicRoutes = [
-  "/",
-  "/sobre",
-  "/artistas",
-  "/servicos",
-  "/galeria",
-  "/galeria?estilo=Realismo",
-  "/contato",
-  "/agendamento",
-  "/sitemap.xml",
-  "/robots.txt",
+  { path: "/", h1: true },
+  { path: "/sobre", h1: true },
+  { path: "/artistas", h1: true },
+  { path: "/servicos", h1: true },
+  { path: "/galeria", h1: true },
+  { path: "/galeria?estilo=Realismo" },
+  { path: "/contato", h1: true },
+  { path: "/agendamento" },
+  { path: "/sitemap.xml" },
+  { path: "/robots.txt" },
 ];
 
 const guest = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+guest.setDefaultNavigationTimeout(NAV_TIMEOUT);
 const guestPage = await guest.newPage();
 
+// Status e H1 na MESMA visita.
+//
+// Eram dois laços sobre as mesmas rotas, dobrando as visitas às páginas cheias
+// de imagem. Num runner de dois núcleos isso enfileirava a otimização AVIF a
+// ponto de a segunda ida à galeria estourar 30s de timeout — numa página que
+// tinha carregado meio minuto antes. O trabalho duplicado era o problema; o
+// timeout só foi onde ele apareceu.
 for (const route of publicRoutes) {
-  const response = await guestPage.goto(`${BASE}${route}`, { waitUntil: "domcontentloaded" });
-  check(`carrega ${route}`, response?.status() === 200, `HTTP ${response?.status()}`);
+  const response = await guestPage.goto(`${BASE}${route.path}`, {
+    waitUntil: "domcontentloaded",
+  });
+  check(
+    `carrega ${route.path}`,
+    response?.status() === 200,
+    `HTTP ${response?.status()}`,
+  );
+
+  if (route.h1) {
+    const h1 = await guestPage.locator("h1").count();
+    check(`H1 único em ${route.path}`, h1 === 1, `${h1} encontrados`);
+  }
 }
 
 // Detalhe de artista.
@@ -355,13 +382,6 @@ check(
   "lightbox fecha com Esc",
   (await guestPage.locator('[role="dialog"]').count()) === 0,
 );
-
-// H1 único por página (SEO)
-for (const route of ["/", "/sobre", "/artistas", "/servicos", "/galeria", "/contato"]) {
-  await guestPage.goto(`${BASE}${route}`, { waitUntil: "domcontentloaded" });
-  const h1 = await guestPage.locator("h1").count();
-  check(`H1 único em ${route}`, h1 === 1, `${h1} encontrados`);
-}
 
 await guest.close();
 
@@ -397,6 +417,7 @@ for (const shot of shots) {
     locale: "pt-BR",
     timezoneId: "America/Sao_Paulo",
   });
+  shotContext.setDefaultNavigationTimeout(NAV_TIMEOUT);
   const shotPage = await shotContext.newPage();
   await shotPage.goto(`${BASE}${shot.route}`, { waitUntil: "domcontentloaded" });
   await shotPage.waitForLoadState("load");

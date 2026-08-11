@@ -59,6 +59,9 @@ async function newContext(width) {
     // caminho do CSS).
     reducedMotion: "reduce",
   });
+  // Ver a nota em e2e.mjs: runner de dois núcleos com a otimização de imagem
+  // do Next disputando CPU estoura os 30s padrão do Playwright.
+  context.setDefaultNavigationTimeout(60_000);
   await context.addInitScript({ path: AXE_PATH });
   return context;
 }
@@ -244,6 +247,7 @@ if (loggedIn) {
     reducedMotion: "reduce",
     storageState: await admin.storageState(),
   });
+  adminMobile.setDefaultNavigationTimeout(60_000);
   await adminMobile.addInitScript({ path: AXE_PATH });
   const adminMobilePage = await adminMobile.newPage();
   await adminMobilePage.goto(`${BASE}/admin`, { waitUntil: "domcontentloaded" });
